@@ -1,0 +1,119 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: #F8FAFC;
+  color: #0F172A;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Gradient button utility */
+.btn-gradient {
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  color: white;
+  transition: all 0.2s ease;
+}
+.btn-gradient:hover {
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  box-shadow: 0 4px 15px rgba(99,102,241,0.35);
+  transform: translateY(-1px);
+}
+.btn-gradient:active {
+  transform: translateY(0);
+}
+.btn-gradient:disabled {
+  background: #CBD5E1;
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+}
+
+/* Ghost button */
+.btn-ghost {
+  color: #64748B;
+  transition: all 0.2s ease;
+}
+.btn-ghost:hover {
+  color: #0F172A;
+  background: #F1F5F9;
+}
+
+/* Card hover lift */
+.card-lift {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08), 0 4px 10px -6px rgba(0,0,0,0.04);
+}
+
+/* Animated background orb */
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.3;
+  animation: float 8s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.05); }
+  66% { transform: translate(-20px, 15px) scale(0.95); }
+}
+
+/* Upload dropzone glow on hover */
+.dropzone-hover {
+  transition: all 0.3s ease;
+}
+.dropzone-hover:hover {
+  border-color: #6366F1;
+  background: #EEF2FF;
+  box-shadow: 0 0 0 4px rgba(99,102,241,0.08);
+}
+
+/* Spinner */
+.spinner {
+  border: 3px solid #E2E8F0;
+  border-top-color: #6366F1;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin-slow 0.8s linear infinite;
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+/* Stepper connector line */
+.stepper-connector {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  width: calc(100% - 2rem);
+  height: 2px;
+  transform: translateY(-50%);
+}
