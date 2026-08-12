@@ -2,7 +2,7 @@ import { IndustryKey, IndustryMeta, ProcessResult, SessionRecord } from "./types
 
 // Set NEXT_PUBLIC_API_BASE_URL in .env.local / Vercel project settings.
 // Falls back to localhost for local development against `uvicorn main:app`.
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 
 export async function fetchIndustries(): Promise<Record<IndustryKey, IndustryMeta>> {
   const res = await fetch(`${API_BASE}/api/industries`);
