@@ -7,12 +7,15 @@ import UploadStep from "@/components/UploadStep";
 import ProcessStep from "@/components/ProcessStep";
 import ResultsStep from "@/components/ResultsStep";
 import SessionList from "@/components/SessionList";
+import DataValidationFlow from "@/components/DataValidationFlow";
 import { fetchIndustries, fetchDemoPdf, processDocument } from "@/lib/api";
 import { IndustryKey, IndustryMeta, ProcessResult, SessionRecord } from "@/lib/types";
 
 export default function Home() {
   const [industries, setIndustries] = useState<Record<IndustryKey, IndustryMeta> | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [activeTab, setActiveTab] = useState<"process" | "validate">("process");
 
   const [screen, setScreen] = useState(1);
   const [industry, setIndustry] = useState<IndustryKey | null>(null);
@@ -172,47 +175,73 @@ export default function Home() {
           </span>
         </div>
 
-        <Stepper current={screen} />
-
-        {/* Main content card */}
-        <div className="bg-white rounded-2xl shadow-card border border-line/50 p-6 sm:p-8 animate-fade-in">
-          {screen === 1 && (
-            <IndustrySelect industries={industries} selected={industry} onSelect={setIndustry} onContinue={goToUpload} />
-          )}
-          {screen === 2 && industry && meta && (
-            <UploadStep
-              industry={industry}
-              meta={meta}
-              error={uploadError}
-              onBack={() => setScreen(1)}
-              onFile={handleFile}
-              onUseDemo={() => handleUseDemo(false)}
-              onUseNegative={() => handleUseDemo(true)}
-            />
-          )}
-          {screen === 3 && meta && (
-            <ProcessStep
-              meta={meta}
-              pdfUrl={pdfUrl}
-              sourceLabel={sourceLabel}
-              processing={processing}
-              error={processError}
-              onBack={() => setScreen(2)}
-              onProcess={handleProcess}
-            />
-          )}
-          {screen === 4 && meta && result && (
-            <ResultsStep
-              meta={meta}
-              result={result}
-              onAnother={startOver}
-              onBackToPreview={() => setScreen(3)}
-              onResultUpdate={handleResultUpdate}
-            />
-          )}
+        {/* Tabs */}
+        <div className="flex gap-2 mb-8 border-b border-line">
+          <button
+            onClick={() => setActiveTab("process")}
+            className={`px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+              activeTab === "process" ? "border-primary text-ink" : "border-transparent text-inksoft hover:text-ink"
+            }`}
+          >
+            Process New Document
+          </button>
+          <button
+            onClick={() => setActiveTab("validate")}
+            className={`px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+              activeTab === "validate" ? "border-primary text-ink" : "border-transparent text-inksoft hover:text-ink"
+            }`}
+          >
+            Existing Data Validation
+          </button>
         </div>
 
-        <SessionList records={sessionResults} />
+        {activeTab === "process" ? (
+          <>
+            <Stepper current={screen} />
+
+            {/* Main content card */}
+            <div className="bg-white rounded-2xl shadow-card border border-line/50 p-6 sm:p-8 animate-fade-in">
+              {screen === 1 && (
+                <IndustrySelect industries={industries} selected={industry} onSelect={setIndustry} onContinue={goToUpload} />
+              )}
+              {screen === 2 && industry && meta && (
+                <UploadStep
+                  industry={industry}
+                  meta={meta}
+                  error={uploadError}
+                  onBack={() => setScreen(1)}
+                  onFile={handleFile}
+                  onUseDemo={() => handleUseDemo(false)}
+                  onUseNegative={() => handleUseDemo(true)}
+                />
+              )}
+              {screen === 3 && meta && (
+                <ProcessStep
+                  meta={meta}
+                  pdfUrl={pdfUrl}
+                  sourceLabel={sourceLabel}
+                  processing={processing}
+                  error={processError}
+                  onBack={() => setScreen(2)}
+                  onProcess={handleProcess}
+                />
+              )}
+              {screen === 4 && meta && result && (
+                <ResultsStep
+                  meta={meta}
+                  result={result}
+                  onAnother={startOver}
+                  onBackToPreview={() => setScreen(3)}
+                  onResultUpdate={handleResultUpdate}
+                />
+              )}
+            </div>
+
+            <SessionList records={sessionResults} />
+          </>
+        ) : (
+          <DataValidationFlow industries={industries} />
+        )}
       </div>
     </div>
   );

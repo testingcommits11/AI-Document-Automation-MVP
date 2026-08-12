@@ -122,6 +122,16 @@ export default function ResultsStep({
 
   return (
     <div className="animate-fade-in">
+       <button
+          type="button"
+          onClick={onBackToPreview}
+          className="btn-ghost flex items-center gap-1.5 font-medium text-sm px-4 py-2 rounded-lg"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+          </svg>
+          Back to preview
+        </button>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <h2 className="font-display font-semibold text-xl text-ink">Results — {meta.label}</h2>
         <button

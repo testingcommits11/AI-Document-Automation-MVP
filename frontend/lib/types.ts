@@ -19,6 +19,7 @@ export interface ValidationField {
   label: string;
   value: string;
   ok: boolean;
+  status?: "valid" | "missing" | "invalid";
 }
 
 export interface ProcessResult {

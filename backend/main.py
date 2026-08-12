@@ -7,7 +7,7 @@ from industries import INDUSTRIES, get_industry
 from pdf_utils import extract_text, PdfExtractionError
 from ai_extraction import extract_structured_data, AIExtractionError
 from validation import validate
-from demo_pdfs import build_demo_pdf
+from demo_pdfs import build_demo_pdf, build_combined_pdf
 
 app = FastAPI(title="AI Document Automation MVP API")
 
@@ -89,6 +89,7 @@ async def process_document(industry: str = Form(...), file: UploadFile = File(..
 
 
 from pydantic import BaseModel
+from typing import List, Optional
 
 class ExportRequest(BaseModel):
     industry: str
@@ -110,6 +111,34 @@ def export_pdf(req: ExportRequest):
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+class CombinedExportRecord(BaseModel):
+    industry: str
+    extracted: dict
+    sourceLabel: Optional[str] = None
+
+
+class CombinedExportRequest(BaseModel):
+    records: List[CombinedExportRecord]
+
+
+@app.post("/api/export-combined-pdf")
+def export_combined_pdf(req: CombinedExportRequest):
+    """
+    Generates one PDF that collects the data from every processed document
+    passed in (e.g. the whole "Processed Documents" session list) so it can
+    be downloaded and reviewed as a single file.
+    """
+    if not req.records:
+        raise HTTPException(status_code=400, detail="No documents to export.")
+
+    pdf_bytes = build_combined_pdf([r.dict() for r in req.records])
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="processed_documents_combined.pdf"'},
     )
 
 

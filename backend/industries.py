@@ -38,7 +38,7 @@ INDUSTRIES = {
             "date": "8 Aug 2026",
             "category": "Travel",
         },
-        "negative_field": "category",
+        "negative_field": "date",
     },
     "healthcare": {
         "label": "Healthcare",
