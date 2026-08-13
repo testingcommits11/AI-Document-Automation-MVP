@@ -1,9 +1,12 @@
 export type FieldType = "text" | "date" | "number";
 
 export interface FieldDef {
+  id?: number;
   key: string;
   label: string;
   type: FieldType;
+  position?: number;
+  active?: boolean;
 }
 
 export interface IndustryMeta {
@@ -27,6 +30,8 @@ export interface ProcessResult {
   extracted: Record<string, string>;
   validation: ValidationField[];
   overall: "ready" | "review";
+  ai_provider?: string;
+  fallback_used?: boolean;
 }
 
 export interface SessionRecord extends ProcessResult {

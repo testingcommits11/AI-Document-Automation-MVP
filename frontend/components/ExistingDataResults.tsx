@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FieldType, IndustryMeta, ProcessResult } from "@/lib/types";
-import { exportUpdatedPdf } from "@/lib/api";
+import { exportUpdatedPdf, emailUpdatedPdf } from "@/lib/api";
 
 type FieldStatus = "valid" | "missing" | "invalid";
 
@@ -49,6 +49,10 @@ export default function ExistingDataResults({
 
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [showEmail, setShowEmail] = useState(false);
+  const [recipient, setRecipient] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailMessage, setEmailMessage] = useState<string | null>(null);
 
   const live = meta.fields.map((f) => {
     const value = validatedState[f.key] ?? "";
@@ -66,6 +70,21 @@ export default function ExistingDataResults({
   function handleValidateAndUpdate() {
     setValidatedState(fieldsState);
     setReviewed(true);
+  }
+
+  async function handleEmailPdf() {
+    setEmailSending(true);
+    setEmailMessage(null);
+    try {
+      await emailUpdatedPdf(result.industry, fieldsState, recipient);
+      setEmailMessage(`PDF sent to ${recipient}.`);
+      setRecipient("");
+      setShowEmail(false);
+    } catch (e: any) {
+      setEmailMessage(e.message || "Failed to send PDF email.");
+    } finally {
+      setEmailSending(false);
+    }
   }
 
   async function handleDownloadPdf() {
@@ -206,6 +225,13 @@ export default function ExistingDataResults({
         </p>
       )}
       {downloadError && <p className="text-xs text-red-500 font-mono mt-2">{downloadError}</p>}
+      {emailMessage && <p className="text-xs text-inksoft font-mono mt-2">{emailMessage}</p>}
+      {showEmail && (
+        <div className="mt-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center border border-line rounded-xl p-3 bg-slate-50/70">
+          <input type="email" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="recipient@example.com" className="flex-1 border border-line rounded-lg px-3 py-2.5 text-sm bg-white outline-none focus:border-primary" />
+          <button type="button" disabled={emailSending || !recipient} onClick={handleEmailPdf} className="btn-gradient rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-50">{emailSending ? "Sending…" : "Send"}</button>
+        </div>
+      )}
 
       <div className="flex gap-3 mt-7 flex-wrap items-center">
         <button

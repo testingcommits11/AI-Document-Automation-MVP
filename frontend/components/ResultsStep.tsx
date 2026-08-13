@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FieldType, IndustryMeta, ProcessResult } from "@/lib/types";
-import { exportUpdatedPdf } from "@/lib/api";
+import { exportUpdatedPdf, emailUpdatedPdf } from "@/lib/api";
 
 function checkFieldOk(val: string, type: FieldType = "text"): boolean {
   const trimmed = (val || "").trim();
@@ -52,6 +52,23 @@ export default function ResultsStep({
   const [editAll, setEditAll] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [showEmail, setShowEmail] = useState(false);
+  const [recipient, setRecipient] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailMessage, setEmailMessage] = useState<string | null>(null);
+
+  // Keep locally edited values aligned with live schema changes.
+  useEffect(() => {
+    setFieldsState((prev) => {
+      const next = { ...prev };
+      for (const field of meta.fields) {
+        if (!(field.key in next)) {
+          next[field.key] = result.extracted?.[field.key] || "";
+        }
+      }
+      return next;
+    });
+  }, [meta.fields, result.extracted]);
 
   // Helper to get field type from industry meta
   const getFieldType = (key: string): FieldType => {
@@ -59,17 +76,21 @@ export default function ResultsStep({
     return f ? f.type : "text";
   };
 
-  // Compute live validation list
-  const liveValidation = result.validation.map((f) => {
-    const currentValue = fieldsState[f.key] ?? f.value ?? "";
-    const fType = getFieldType(f.key);
-    const ok = checkFieldOk(currentValue, fType);
-    const isEdited = Boolean(editedKeys[f.key]);
+  // Compute the live field list from the backend schema, not the original
+  // extraction response. This means a newly added field appears automatically
+  // after the next schema refresh.
+  const liveValidation = meta.fields.map((field) => {
+    const existing = result.validation.find((item) => item.key === field.key);
+    const currentValue = fieldsState[field.key] ?? existing?.value ?? "";
+    const ok = checkFieldOk(currentValue, field.type);
+    const isEdited = Boolean(editedKeys[field.key]);
 
     return {
-      ...f,
+      key: field.key,
+      label: field.label,
       value: currentValue,
       ok,
+      status: ok ? "valid" : "missing",
       isEdited,
     };
   });
@@ -97,6 +118,21 @@ export default function ResultsStep({
         validation: updatedValidation,
         overall: updatedValidation.every((v) => v.ok) ? "ready" : "review",
       });
+    }
+  };
+
+  const handleEmailPdf = async () => {
+    setEmailSending(true);
+    setEmailMessage(null);
+    try {
+      await emailUpdatedPdf(result.industry, fieldsState, recipient);
+      setEmailMessage(`PDF sent to ${recipient}.`);
+      setRecipient("");
+      setShowEmail(false);
+    } catch (e: any) {
+      setEmailMessage(e.message || "Failed to send PDF email.");
+    } finally {
+      setEmailSending(false);
     }
   };
 
@@ -358,8 +394,24 @@ export default function ResultsStep({
         )}
       </div>
 
+      {emailMessage && <p className="text-xs text-inksoft font-mono mt-3">{emailMessage}</p>}
+      {showEmail && (
+        <div className="mt-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center border border-line rounded-xl p-3 bg-slate-50/70">
+          <input type="email" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="recipient@example.com" className="flex-1 border border-line rounded-lg px-3 py-2.5 text-sm bg-white outline-none focus:border-primary" />
+          <button type="button" disabled={emailSending || !recipient} onClick={handleEmailPdf} className="btn-gradient rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-50">{emailSending ? "Sending…" : "Send"}</button>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex gap-3 mt-7 flex-wrap items-center">
+        <button
+          type="button"
+          onClick={() => setShowEmail((v) => !v)}
+          className="border border-line rounded-xl px-5 py-3 text-sm font-semibold text-ink hover:border-primary hover:text-primary transition-colors"
+        >
+          Email PDF
+        </button>
+
         <button
           type="button"
           onClick={onAnother}

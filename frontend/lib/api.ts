@@ -66,3 +66,43 @@ export async function exportCombinedPdf(records: SessionRecord[]): Promise<Blob>
   }
   return res.blob();
 }
+
+export async function createField(industry: IndustryKey, payload: { label: string; type: string; key?: string }) {
+  const res = await fetch(`${API_BASE}/api/fields/${industry}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || "Failed to add field.");
+  return body;
+}
+
+export async function updateField(industry: IndustryKey, fieldId: number, payload: { label: string; type: string }) {
+  const res = await fetch(`${API_BASE}/api/fields/${industry}/${fieldId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || "Failed to update field.");
+  return body;
+}
+
+export async function deleteField(industry: IndustryKey, fieldId: number) {
+  const res = await fetch(`${API_BASE}/api/fields/${industry}/${fieldId}`, { method: "DELETE" });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || "Failed to remove field.");
+  return body;
+}
+
+export async function emailUpdatedPdf(industry: IndustryKey, extracted: Record<string, string>, recipient: string): Promise<{ ok: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/api/email-pdf`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ industry, extracted, recipient }),
+  });
+  const body = await res.json().catch(() => ({ detail: "Failed to send PDF email." }));
+  if (!res.ok) throw new Error(body.detail || "Failed to send PDF email.");
+  return body;
+}

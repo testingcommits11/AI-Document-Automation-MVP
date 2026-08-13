@@ -8,6 +8,7 @@ import ProcessStep from "@/components/ProcessStep";
 import ResultsStep from "@/components/ResultsStep";
 import SessionList from "@/components/SessionList";
 import DataValidationFlow from "@/components/DataValidationFlow";
+import FieldSettings from "@/components/FieldSettings";
 import { fetchIndustries, fetchDemoPdf, processDocument } from "@/lib/api";
 import { IndustryKey, IndustryMeta, ProcessResult, SessionRecord } from "@/lib/types";
 
@@ -15,7 +16,7 @@ export default function Home() {
   const [industries, setIndustries] = useState<Record<IndustryKey, IndustryMeta> | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"process" | "validate">("process");
+  const [activeTab, setActiveTab] = useState<"process" | "validate" | "fields">("process");
 
   const [screen, setScreen] = useState(1);
   const [industry, setIndustry] = useState<IndustryKey | null>(null);
@@ -30,10 +31,17 @@ export default function Home() {
 
   const [sessionResults, setSessionResults] = useState<SessionRecord[]>([]);
 
+  async function refreshIndustries() {
+    const next = await fetchIndustries();
+    setIndustries(next);
+  }
+
   useEffect(() => {
-    fetchIndustries()
-      .then(setIndustries)
-      .catch((e) => setLoadError(e.message));
+    refreshIndustries().catch((e) => setLoadError(e.message));
+    const timer = window.setInterval(() => {
+      refreshIndustries().catch(() => undefined);
+    }, 5000);
+    return () => window.clearInterval(timer);
   }, []);
 
   function resetDocumentState() {
@@ -193,6 +201,14 @@ export default function Home() {
           >
             Existing Data Validation
           </button>
+          <button
+            onClick={() => setActiveTab("fields")}
+            className={`px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+              activeTab === "fields" ? "border-primary text-ink" : "border-transparent text-inksoft hover:text-ink"
+            }`}
+          >
+            Field Settings
+          </button>
         </div>
 
         {activeTab === "process" ? (
@@ -239,8 +255,10 @@ export default function Home() {
 
             <SessionList records={sessionResults} />
           </>
-        ) : (
+        ) : activeTab === "validate" ? (
           <DataValidationFlow industries={industries} />
+        ) : (
+          <FieldSettings industries={industries} onRefresh={refreshIndustries} />
         )}
       </div>
     </div>
