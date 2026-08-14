@@ -3,3 +3,13 @@ __pycache__/
 .venv/
 .env
 *.zip
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+.next/
+*.db
+*.sqlite
+*.sqlite3
