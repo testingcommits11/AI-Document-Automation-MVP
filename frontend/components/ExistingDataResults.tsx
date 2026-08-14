@@ -16,6 +16,20 @@ type FieldStatus =
   | "missing"
   | "invalid";
 
+function getTodayInputValue(): string {
+  const today = new Date();
+
+  const year = today.getFullYear();
+  const month = String(
+    today.getMonth() + 1,
+  ).padStart(2, "0");
+  const day = String(
+    today.getDate(),
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function computeStatus(
   value: string,
   type: FieldType,
@@ -26,25 +40,53 @@ function computeStatus(
     return "missing";
   }
 
-  if (
-    type === "number" &&
-    !/^[-+]?[\d,]+(?:\.\d+)?$/.test(
-      trimmed.replace(/[$\s]/g, ""),
-    )
-  ) {
-    return "invalid";
+  if (type === "number") {
+    const normalized = trimmed.replace(
+      /[$,\s]/g,
+      "",
+    );
+
+    if (
+      !/^[-+]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(
+        normalized,
+      )
+    ) {
+      return "invalid";
+    }
   }
 
   if (type === "date") {
-    const validDate =
-      /^\d{4}-\d{2}-\d{2}$/.test(
+    // Native date picker returns YYYY-MM-DD.
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(
         trimmed,
-      ) ||
-      /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(
-        trimmed,
-      );
+      )
+    ) {
+      return "invalid";
+    }
 
-    if (!validDate) {
+    const selectedDate = new Date(
+      `${trimmed}T00:00:00`,
+    );
+
+    if (
+      Number.isNaN(
+        selectedDate.getTime(),
+      )
+    ) {
+      return "invalid";
+    }
+
+    const today = new Date();
+
+    today.setHours(
+      0,
+      0,
+      0,
+      0,
+    );
+
+    if (selectedDate > today) {
       return "invalid";
     }
   }
@@ -112,7 +154,9 @@ function getInputPlaceholder(
 }
 
 function getInputClass(
-  status: "missing" | "invalid",
+  status:
+    | "missing"
+    | "invalid",
 ): string {
   if (status === "missing") {
     return "w-full text-sm font-mono px-3 py-2.5 rounded-xl border border-amber-300 bg-amber-50/60 outline-none focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-amber-900 placeholder-amber-400 transition-all";
@@ -217,7 +261,8 @@ export default function ExistingDataResults({
 
   const complete = live.every(
     (field) =>
-      field.status === "valid",
+      field.status ===
+      "valid",
   );
 
   const missingCount =
@@ -349,7 +394,6 @@ export default function ExistingDataResults({
 
   return (
     <div className="animate-fade-in">
-      {/* Back */}
       <button
         type="button"
         onClick={onBack}
@@ -423,6 +467,7 @@ export default function ExistingDataResults({
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                strokeWidth={2}
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
               />
             </svg>
@@ -446,10 +491,8 @@ export default function ExistingDataResults({
                     : ""
                 } missing`}
 
-              {missingCount >
-                0 &&
-                invalidCount >
-                  0 &&
+              {missingCount > 0 &&
+                invalidCount > 0 &&
                 " · "}
 
               {invalidCount > 0 &&
@@ -548,12 +591,26 @@ export default function ExistingDataResults({
                         ? "decimal"
                         : undefined
                     }
+                    min={
+                      field.type ===
+                      "date"
+                        ? undefined
+                        : undefined
+                    }
+                    max={
+                      field.type ===
+                      "date"
+                        ? getTodayInputValue()
+                        : undefined
+                    }
                     value={
                       fieldsState[
                         field.key
                       ] ?? ""
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event,
+                    ) =>
                       handleChange(
                         field.key,
                         event.target
@@ -568,6 +625,13 @@ export default function ExistingDataResults({
                       "missing",
                     )}
                   />
+
+                  {field.type ===
+                    "date" && (
+                    <p className="text-[10px] text-amber-700/80 font-mono mt-1.5">
+                      Future dates cannot be selected.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -577,7 +641,8 @@ export default function ExistingDataResults({
                 <div>
                   <div className="flex items-center justify-between mb-2 gap-3">
                     <span className="font-mono text-sm text-red-500 line-through decoration-red-300 break-words">
-                      {field.value}
+                      {field.value ||
+                        "Invalid value"}
                     </span>
 
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2.5 py-1 whitespace-nowrap">
@@ -595,12 +660,26 @@ export default function ExistingDataResults({
                         ? "decimal"
                         : undefined
                     }
+                    min={
+                      field.type ===
+                      "date"
+                        ? undefined
+                        : undefined
+                    }
+                    max={
+                      field.type ===
+                      "date"
+                        ? getTodayInputValue()
+                        : undefined
+                    }
                     value={
                       fieldsState[
                         field.key
                       ] ?? ""
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event,
+                    ) =>
                       handleChange(
                         field.key,
                         event.target
@@ -615,6 +694,13 @@ export default function ExistingDataResults({
                       "invalid",
                     )}
                   />
+
+                  {field.type ===
+                    "date" && (
+                    <p className="text-[10px] text-red-600/80 font-mono mt-1.5">
+                      Select today or an earlier date.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -636,7 +722,6 @@ export default function ExistingDataResults({
         </p>
       )}
 
-      {/* Errors / messages */}
       {downloadError && (
         <p className="text-xs text-red-500 font-mono mt-2">
           {downloadError}
@@ -649,7 +734,7 @@ export default function ExistingDataResults({
         </p>
       )}
 
-      {/* Email panel */}
+      {/* Email */}
       {showEmail && (
         <div className="mt-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center border border-line rounded-xl p-3 bg-slate-50/70">
           <input
@@ -714,7 +799,6 @@ export default function ExistingDataResults({
               d="M5 13l4 4L19 7"
             />
           </svg>
-
           Validate & Update
         </button>
 
@@ -788,7 +872,6 @@ export default function ExistingDataResults({
               height="14"
               rx="2"
             />
-
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -821,7 +904,6 @@ export default function ExistingDataResults({
               d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
             />
           </svg>
-
           Validate Another Document
         </button>
 
@@ -843,7 +925,6 @@ export default function ExistingDataResults({
               d="M11 17l-5-5m0 0l5-5m-5 5h12"
             />
           </svg>
-
           Back
         </button>
       </div>
