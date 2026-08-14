@@ -1,45 +1,70 @@
+from __future__ import annotations
+
 import os
 from typing import List, Optional
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, EmailStr, Field
 
-from industries import INDUSTRIES, get_industry
-from pdf_utils import extract_text, PdfExtractionError
-from ai_extraction import extract_structured_data, AIExtractionError
-from validation import validate
-from demo_pdfs import build_demo_pdf, build_combined_pdf
+from ai_extraction import (
+    AIExtractionError,
+    extract_structured_data,
+)
+from auth import (
+    create_access_token,
+    get_current_user,
+    get_optional_user,
+    hash_password,
+    verify_password,
+)
 from database import (
+    add_field,
+    create_user,
+    deactivate_field,
+    get_user_by_email,
     init_db,
     list_fields,
-    add_field,
     update_field,
-    deactivate_field,
 )
-from email_service import send_pdf_email, EmailDeliveryError
+from demo_pdfs import (
+    build_combined_pdf,
+    build_demo_pdf,
+)
+from email_service import (
+    EmailDeliveryError,
+    send_pdf_email,
+)
+from industries import (
+    INDUSTRIES,
+    get_industry,
+)
+from pdf_utils import (
+    PdfExtractionError,
+    extract_text,
+)
+from validation import validate
 
-
-# ---------------------------------------------------------------------------
-# Database
-# ---------------------------------------------------------------------------
 
 init_db()
 
-
-# ---------------------------------------------------------------------------
-# FastAPI application
-# ---------------------------------------------------------------------------
 
 app = FastAPI(
     title="AI Document Automation MVP API"
 )
 
 
-# ---------------------------------------------------------------------------
+# ============================================================================
 # CORS
-# ---------------------------------------------------------------------------
+# ============================================================================
 
 ALLOWED_ORIGINS = [
     origin.strip()
@@ -59,40 +84,155 @@ app.add_middleware(
 )
 
 
-# ===========================================================================
-# INDUSTRIES
-# ===========================================================================
+# ============================================================================
+# AUTH
+# ============================================================================
 
-@app.get("/api/industries")
-def list_industries():
-    """
-    Return industry configuration and the current dynamic field schema.
-    """
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(
+        min_length=8,
+        max_length=128,
+    )
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(
+        min_length=1,
+        max_length=128,
+    )
+
+
+@app.post("/api/auth/register")
+def register(
+    req: RegisterRequest,
+):
+    email = str(req.email).strip().lower()
+
+    if get_user_by_email(email):
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists.",
+        )
+
+    user = create_user(
+        email=email,
+        password_hash=hash_password(
+            req.password
+        ),
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists.",
+        )
+
+    token = create_access_token(
+        int(user["id"])
+    )
 
     return {
-        key: {
-            "label": cfg["label"],
-            "doc_title": cfg["doc_title"],
-            "fields": list_fields(key),
-        }
-        for key, cfg in INDUSTRIES.items()
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+        },
     }
 
 
-# ===========================================================================
-# DYNAMIC FIELDS
-# ===========================================================================
+@app.post("/api/auth/login")
+def login(
+    req: LoginRequest,
+):
+    email = str(req.email).strip().lower()
+
+    user = get_user_by_email(
+        email
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password.",
+        )
+
+    if not verify_password(
+        req.password,
+        user["password_hash"],
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password.",
+        )
+
+    token = create_access_token(
+        int(user["id"])
+    )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+        },
+    }
+
+
+@app.get("/api/auth/me")
+def me(
+    user=Depends(get_current_user),
+):
+    return {
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+        }
+    }
+
+
+# ============================================================================
+# INDUSTRIES
+# ============================================================================
+
+@app.get("/api/industries")
+def list_industries(
+    user=Depends(get_optional_user),
+):
+    user_id = (
+        int(user["id"])
+        if user
+        else None
+    )
+
+    return {
+        key: {
+            "label": config["label"],
+            "doc_title": config["doc_title"],
+            "fields": list_fields(
+                key,
+                user_id,
+            ),
+        }
+        for key, config in INDUSTRIES.items()
+    }
+
+
+# ============================================================================
+# FIELD SETTINGS — AUTHENTICATED
+# ============================================================================
 
 class FieldCreateRequest(BaseModel):
     label: str = Field(
         min_length=1,
         max_length=120,
     )
-
     type: str = Field(
         default="text",
     )
-
     key: str | None = Field(
         default=None,
         max_length=100,
@@ -104,14 +244,16 @@ class FieldUpdateRequest(BaseModel):
         min_length=1,
         max_length=120,
     )
-
     type: str = Field(
         default="text",
     )
 
 
 @app.get("/api/fields/{industry_key}")
-def get_fields(industry_key: str):
+def get_fields(
+    industry_key: str,
+    user=Depends(get_current_user),
+):
     try:
         get_industry(industry_key)
     except KeyError:
@@ -122,7 +264,10 @@ def get_fields(industry_key: str):
 
     return {
         "industry": industry_key,
-        "fields": list_fields(industry_key),
+        "fields": list_fields(
+            industry_key,
+            int(user["id"]),
+        ),
     }
 
 
@@ -130,15 +275,17 @@ def get_fields(industry_key: str):
 def create_field(
     industry_key: str,
     req: FieldCreateRequest,
+    user=Depends(get_current_user),
 ):
     try:
         get_industry(industry_key)
 
         return add_field(
-            industry_key,
-            req.label,
-            req.type,
-            req.key,
+            industry=industry_key,
+            label=req.label,
+            field_type=req.type,
+            key=req.key,
+            user_id=int(user["id"]),
         )
 
     except KeyError:
@@ -159,21 +306,23 @@ def edit_field(
     industry_key: str,
     field_id: int,
     req: FieldUpdateRequest,
+    user=Depends(get_current_user),
 ):
     try:
         get_industry(industry_key)
 
         return update_field(
-            industry_key,
-            field_id,
-            req.label,
-            req.type,
+            industry=industry_key,
+            field_id=field_id,
+            label=req.label,
+            field_type=req.type,
+            user_id=int(user["id"]),
         )
 
-    except KeyError:
+    except PermissionError as exc:
         raise HTTPException(
-            status_code=404,
-            detail="Unknown industry",
+            status_code=403,
+            detail=str(exc),
         )
 
     except ValueError as exc:
@@ -182,28 +331,36 @@ def edit_field(
             detail=str(exc),
         )
 
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail="Unknown industry",
+        )
+
 
 @app.delete("/api/fields/{industry_key}/{field_id}")
 def delete_field(
     industry_key: str,
     field_id: int,
+    user=Depends(get_current_user),
 ):
     try:
         get_industry(industry_key)
 
         deactivate_field(
-            industry_key,
-            field_id,
+            industry=industry_key,
+            field_id=field_id,
+            user_id=int(user["id"]),
         )
 
         return {
-            "ok": True,
+            "ok": True
         }
 
-    except KeyError:
+    except PermissionError as exc:
         raise HTTPException(
-            status_code=404,
-            detail="Unknown industry",
+            status_code=403,
+            detail=str(exc),
         )
 
     except ValueError as exc:
@@ -212,22 +369,26 @@ def delete_field(
             detail=str(exc),
         )
 
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail="Unknown industry",
+        )
 
-# ===========================================================================
-# DEMO PDF
-# ===========================================================================
+
+# ============================================================================
+# DEMO PDF — PUBLIC
+# ============================================================================
 
 @app.get("/api/demo/{industry_key}")
 def get_demo_pdf(
     industry_key: str,
     negative: bool = False,
 ):
-    """
-    Serve a demo PDF or negative/missing-field test PDF.
-    """
-
     try:
-        get_industry(industry_key)
+        get_industry(
+            industry_key
+        )
     except KeyError:
         raise HTTPException(
             status_code=404,
@@ -255,19 +416,16 @@ def get_demo_pdf(
     )
 
 
-# ===========================================================================
-# PROCESS DOCUMENT
-# ===========================================================================
+# ============================================================================
+# PROCESS PDF — PUBLIC
+# ============================================================================
 
 @app.post("/api/process")
 async def process_document(
     industry: str = Form(...),
     file: UploadFile = File(...),
+    user=Depends(get_optional_user),
 ):
-    """
-    PDF -> text extraction -> AI extraction -> validation.
-    """
-
     try:
         get_industry(industry)
     except KeyError:
@@ -287,22 +445,31 @@ async def process_document(
 
     pdf_bytes = await file.read()
 
-    # PDF extraction
     try:
-        text = extract_text(pdf_bytes)
+        text = extract_text(
+            pdf_bytes
+        )
     except PdfExtractionError as exc:
         raise HTTPException(
             status_code=422,
             detail=str(exc),
         )
 
-    # AI extraction
+    user_id = (
+        int(user["id"])
+        if user
+        else None
+    )
+
     try:
-        extracted, ai_provider, fallback_used = (
-            extract_structured_data(
-                industry,
-                text,
-            )
+        (
+            extracted,
+            ai_provider,
+            fallback_used,
+        ) = extract_structured_data(
+            industry,
+            text,
+            user_id=user_id,
         )
     except AIExtractionError as exc:
         raise HTTPException(
@@ -310,10 +477,10 @@ async def process_document(
             detail=str(exc),
         )
 
-    # Validation
     result = validate(
         industry,
         extracted,
+        user_id=user_id,
     )
 
     return JSONResponse(
@@ -328,9 +495,9 @@ async def process_document(
     )
 
 
-# ===========================================================================
-# EXPORT SINGLE PDF
-# ===========================================================================
+# ============================================================================
+# SINGLE PDF EXPORT — PUBLIC
+# ============================================================================
 
 class ExportRequest(BaseModel):
     industry: str
@@ -338,22 +505,30 @@ class ExportRequest(BaseModel):
 
 
 @app.post("/api/export-pdf")
-def export_pdf(req: ExportRequest):
-    """
-    Generate one updated PDF using the user's extracted/corrected values.
-    """
-
+def export_pdf(
+    req: ExportRequest,
+    user=Depends(get_optional_user),
+):
     try:
-        get_industry(req.industry)
+        get_industry(
+            req.industry
+        )
     except KeyError:
         raise HTTPException(
             status_code=400,
             detail="Unknown industry",
         )
 
+    user_id = (
+        int(user["id"])
+        if user
+        else None
+    )
+
     pdf_bytes = build_demo_pdf(
         req.industry,
         filled_values=req.extracted,
+        user_id=user_id,
     )
 
     filename = (
@@ -371,9 +546,9 @@ def export_pdf(req: ExportRequest):
     )
 
 
-# ===========================================================================
-# COMBINED PDF
-# ===========================================================================
+# ============================================================================
+# COMBINED PDF EXPORT — PUBLIC
+# ============================================================================
 
 class CombinedExportRecord(BaseModel):
     industry: str
@@ -388,22 +563,26 @@ class CombinedExportRequest(BaseModel):
 @app.post("/api/export-combined-pdf")
 def export_combined_pdf(
     req: CombinedExportRequest,
+    user=Depends(get_optional_user),
 ):
-    """
-    Generate one combined PDF from all processed session records.
-    """
-
     if not req.records:
         raise HTTPException(
             status_code=400,
             detail="No documents to export.",
         )
 
+    user_id = (
+        int(user["id"])
+        if user
+        else None
+    )
+
     pdf_bytes = build_combined_pdf(
         [
             record.model_dump()
             for record in req.records
-        ]
+        ],
+        user_id=user_id,
     )
 
     return Response(
@@ -411,16 +590,15 @@ def export_combined_pdf(
         media_type="application/pdf",
         headers={
             "Content-Disposition": (
-                'attachment; '
-                'filename="processed_documents_combined.pdf"'
+                'attachment; filename="processed_documents_combined.pdf"'
             )
         },
     )
 
 
-# ===========================================================================
-# EMAIL SINGLE PDF
-# ===========================================================================
+# ============================================================================
+# EMAIL SINGLE PDF — PUBLIC
+# ============================================================================
 
 class EmailPdfRequest(BaseModel):
     industry: str
@@ -430,22 +608,30 @@ class EmailPdfRequest(BaseModel):
 
 
 @app.post("/api/email-pdf")
-def email_pdf(req: EmailPdfRequest):
-    """
-    Generate one PDF and send it as an email attachment.
-    """
-
+def email_pdf(
+    req: EmailPdfRequest,
+    user=Depends(get_optional_user),
+):
     try:
-        get_industry(req.industry)
+        get_industry(
+            req.industry
+        )
     except KeyError:
         raise HTTPException(
             status_code=400,
             detail="Unknown industry",
         )
 
+    user_id = (
+        int(user["id"])
+        if user
+        else None
+    )
+
     pdf_bytes = build_demo_pdf(
         req.industry,
         filled_values=req.extracted,
+        user_id=user_id,
     )
 
     filename = (
@@ -455,19 +641,21 @@ def email_pdf(req: EmailPdfRequest):
 
     try:
         send_pdf_email(
-            recipient=str(req.recipient),
+            recipient=str(
+                req.recipient
+            ),
             subject=(
                 f"{req.industry.title()} "
                 "document export"
             ),
             body=(
-                "Attached is the generated document "
-                "from AI Document Automation."
+                "Attached is the generated "
+                "document from "
+                "AI Document Automation."
             ),
             filename=filename,
             pdf_bytes=pdf_bytes,
         )
-
     except EmailDeliveryError as exc:
         raise HTTPException(
             status_code=502,
@@ -477,14 +665,15 @@ def email_pdf(req: EmailPdfRequest):
     return {
         "ok": True,
         "message": (
-            f"PDF sent to {req.recipient}"
+            f"PDF sent to "
+            f"{req.recipient}"
         ),
     }
 
 
-# ===========================================================================
-# EMAIL ALL / COMBINED PDF
-# ===========================================================================
+# ============================================================================
+# EMAIL ALL — PUBLIC
+# ============================================================================
 
 class EmailCombinedPdfRequest(BaseModel):
     records: List[CombinedExportRecord]
@@ -494,45 +683,47 @@ class EmailCombinedPdfRequest(BaseModel):
 @app.post("/api/email-combined-pdf")
 def email_combined_pdf(
     req: EmailCombinedPdfRequest,
+    user=Depends(get_optional_user),
 ):
-    """
-    Generate the same combined PDF used by Download All
-    and send it as one email attachment.
-    """
-
     if not req.records:
         raise HTTPException(
             status_code=400,
             detail="No documents to email.",
         )
 
+    user_id = (
+        int(user["id"])
+        if user
+        else None
+    )
+
     pdf_bytes = build_combined_pdf(
         [
             record.model_dump()
             for record in req.records
-        ]
-    )
-
-    filename = (
-        "processed_documents_combined.pdf"
+        ],
+        user_id=user_id,
     )
 
     try:
         send_pdf_email(
-            recipient=str(req.recipient),
+            recipient=str(
+                req.recipient
+            ),
             subject=(
                 "Processed Documents — "
                 "Combined PDF"
             ),
             body=(
                 "Attached is the combined PDF "
-                "containing all processed documents "
-                "from your current session."
+                "containing all processed "
+                "documents from your current session."
             ),
-            filename=filename,
+            filename=(
+                "processed_documents_combined.pdf"
+            ),
             pdf_bytes=pdf_bytes,
         )
-
     except EmailDeliveryError as exc:
         raise HTTPException(
             status_code=502,
@@ -548,12 +739,8 @@ def email_combined_pdf(
     }
 
 
-# ===========================================================================
-# HEALTH
-# ===========================================================================
-
 @app.get("/api/health")
 def health():
     return {
-        "status": "ok",
-    }
+        "status": "ok"
+    }   

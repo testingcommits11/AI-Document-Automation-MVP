@@ -1,42 +1,61 @@
-export type FieldType = "text" | "date" | "number";
+export type IndustryKey = string;
 
-export interface FieldDef {
-  id?: number;
+export type FieldType =
+  | "text"
+  | "date"
+  | "number";
+
+export interface FieldDefinition {
+  id: number;
+  industry: IndustryKey;
   key: string;
   label: string;
   type: FieldType;
-  position?: number;
-  active?: boolean;
+  is_default: boolean;
+  user_id?: number | null;
+  is_active?: boolean;
 }
 
 export interface IndustryMeta {
   label: string;
   doc_title: string;
-  fields: FieldDef[];
+  fields: FieldDefinition[];
 }
-
-export type IndustryKey = "insurance" | "finance" | "healthcare";
 
 export interface ValidationField {
   key: string;
   label: string;
+  type?: FieldType;
   value: string;
-  ok: boolean;
-  status?: "valid" | "missing" | "invalid";
+  status: "valid" | "missing" | "invalid";
+  message?: string;
+  is_default?: boolean;
 }
 
 export interface ProcessResult {
   industry: IndustryKey;
   extracted: Record<string, string>;
   validation: ValidationField[];
-  overall: "ready" | "review";
+  overall: string;
   ai_provider?: string;
   fallback_used?: boolean;
 }
 
-export interface SessionRecord extends ProcessResult {
+export interface SessionRecord
+  extends ProcessResult {
   id: string;
   sourceLabel: string;
   docTitle: string;
   industryLabel: string;
+}
+
+export interface AuthUser {
+  id: number;
+  email: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
 }
