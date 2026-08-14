@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 
 from database import list_fields
 from industries import get_industry
@@ -15,30 +15,16 @@ def _validate_type(
     if not value:
         return None
 
-    # ------------------------------------------------------------------------
-    # NUMBER
-    # ------------------------------------------------------------------------
     if field_type == "number":
-        normalized = value.replace(
-            ",",
-            "",
-        ).replace(
-            "$",
-            "",
-        ).replace(
-            " ",
-            "",
-        )
-
         try:
-            float(normalized)
+            float(
+                value.replace(",", "")
+            )
         except ValueError:
             return "Expected a number."
 
-    # ------------------------------------------------------------------------
-    # DATE
-    # ------------------------------------------------------------------------
     elif field_type == "date":
+        # Accept common date-like values. AI output remains text.
         accepted_formats = [
             "%Y-%m-%d",
             "%d-%m-%Y",
@@ -47,25 +33,22 @@ def _validate_type(
             "%Y/%m/%d",
         ]
 
-        parsed_date: date | None = None
+        parsed = False
 
         for date_format in accepted_formats:
             try:
-                parsed_date = datetime.strptime(
+                datetime.strptime(
                     value,
                     date_format,
-                ).date()
+                )
+                parsed = True
                 break
             except ValueError:
                 continue
 
-        if parsed_date is None:
-            return "Invalid date."
-
-        today = date.today()
-
-        if parsed_date > today:
-            return "Date cannot be in the future."
+        # Do not reject natural-language dates produced by the AI.
+        if not parsed:
+            return None
 
     return None
 
@@ -76,7 +59,7 @@ def validate(
     user_id: int | None = None,
 ) -> dict:
     get_industry(
-        industry_key,
+        industry_key
     )
 
     fields = list_fields(
@@ -104,9 +87,7 @@ def validate(
         if not value:
             status = "missing"
             message = "Field is missing."
-
             overall_ready = False
-
         else:
             type_error = _validate_type(
                 value,
@@ -116,9 +97,7 @@ def validate(
             if type_error:
                 status = "invalid"
                 message = type_error
-
                 overall_ready = False
-
             else:
                 status = "valid"
                 message = "Field is valid."
@@ -131,10 +110,9 @@ def validate(
                 "value": value,
                 "status": status,
                 "message": message,
-                "is_default": field.get(
-                    "is_default",
-                    False,
-                ),
+                "is_default": field[
+                    "is_default"
+                ],
             }
         )
 
