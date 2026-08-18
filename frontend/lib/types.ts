@@ -30,6 +30,7 @@ export interface ValidationField {
   status: "valid" | "missing" | "invalid";
   message?: string;
   is_default?: boolean;
+  ok?: boolean;
 }
 
 export interface ProcessResult {
@@ -39,14 +40,18 @@ export interface ProcessResult {
   overall: string;
   ai_provider?: string;
   fallback_used?: boolean;
+  field_schema?: FieldDefinition[];
+  document_id?: number;
 }
 
-export interface SessionRecord
-  extends ProcessResult {
+export interface SessionRecord extends ProcessResult {
   id: string;
   sourceLabel: string;
   docTitle: string;
   industryLabel: string;
+  fieldSchema?: FieldDefinition[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AuthUser {
