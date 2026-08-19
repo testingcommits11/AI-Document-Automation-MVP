@@ -14,8 +14,7 @@ import {
 
 
 const API_BASE = (
-  process.env
-    .NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
   "http://localhost:8000"
 ).replace(
   /\/+$/,
@@ -39,6 +38,10 @@ function authHeaders(): HeadersInit {
     : {};
 }
 
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
 
 async function readError(
   response: Response,
@@ -333,13 +336,11 @@ export async function updateProcessedDocument(
             "application/json",
           ...authHeaders(),
         },
-        body: JSON.stringify(
-          {
-            extracted,
-            validation,
-            overall,
-          },
-        ),
+        body: JSON.stringify({
+          extracted,
+          validation,
+          overall,
+        }),
       },
     );
 
@@ -416,7 +417,7 @@ export async function updateProcessedDocument(
 
 
 // ============================================================================
-// SINGLE PDF
+// SINGLE PDF EXPORT
 // ============================================================================
 
 export async function exportUpdatedPdf(
@@ -480,9 +481,7 @@ export async function exportCombinedPdf(
         body: JSON.stringify({
           records:
             records.map(
-              (
-                record,
-              ) => ({
+              (record) => ({
                 industry:
                   record.industry,
 
@@ -747,9 +746,7 @@ export async function emailCombinedPdf(
         body: JSON.stringify({
           records:
             records.map(
-              (
-                record,
-              ) => ({
+              (record) => ({
                 industry:
                   record.industry,
 
@@ -820,9 +817,11 @@ export async function register(
   const body =
     await response.json();
 
+  // Backend provides expires_in,
+  // but the client does not need to
+  // enforce the expiry itself.
   setAuthToken(
     body.access_token,
-    body.expires_in,
   );
 
   return body;
@@ -867,7 +866,6 @@ export async function login(
 
   setAuthToken(
     body.access_token,
-    body.expires_in,
   );
 
   return body;
@@ -889,10 +887,26 @@ export async function fetchCurrentUser() {
       },
     );
 
-  if (!response.ok) {
+  // ONLY clear the token when
+  // the backend explicitly returns 401.
+  if (
+    response.status ===
+    401
+  ) {
     clearAuthToken();
 
     return null;
+  }
+
+  // Do NOT clear the token for
+  // 500, 502, network issues, etc.
+  if (!response.ok) {
+    throw new Error(
+      await readError(
+        response,
+        "Could not verify authentication session.",
+      ),
+    );
   }
 
   return response.json();

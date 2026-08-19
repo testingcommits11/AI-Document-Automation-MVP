@@ -122,9 +122,7 @@ def decode_access_token(
             ],
         )
 
-        value = payload.get(
-            "sub",
-        )
+        value = payload.get("sub")
 
         if value is None:
             return None

@@ -71,7 +71,7 @@ export default function Home() {
 
 
   // ==========================================================================
-  // APP
+  // APPLICATION
   // ==========================================================================
 
   const [
@@ -172,7 +172,7 @@ export default function Home() {
 
 
   // ==========================================================================
-  // LOAD APPLICATION DATA
+  // LOAD APP DATA
   // ==========================================================================
 
   const loadAppData =
@@ -302,7 +302,7 @@ export default function Home() {
 
 
   // ==========================================================================
-  // SESSION CHECK
+  // CHECK AUTH
   // ==========================================================================
 
   const checkAuthentication =
@@ -319,7 +319,11 @@ export default function Home() {
           handleSessionExpired();
         }
       } catch {
-        handleSessionExpired();
+        // IMPORTANT:
+        // Do not log the user out for
+        // temporary API/server failures.
+        // Only fetchCurrentUser() returning
+        // null because of 401 should log out.
       }
     }, [
       user,
@@ -337,10 +341,8 @@ export default function Home() {
       return;
     }
 
-    // Immediate check.
     checkAuthentication();
 
-    // Check every 30 seconds.
     const timer =
       window.setInterval(
         () => {
@@ -360,7 +362,7 @@ export default function Home() {
 
 
   // ==========================================================================
-  // CHECK WHEN TAB/APP GETS FOCUS
+  // CHECK WHEN TAB GETS FOCUS
   // ==========================================================================
 
   useEffect(() => {
@@ -411,7 +413,7 @@ export default function Home() {
 
 
   // ==========================================================================
-  // REFRESH INDUSTRIES
+  // INDUSTRIES
   // ==========================================================================
 
   async function refreshIndustries() {
@@ -571,14 +573,8 @@ export default function Home() {
         `${industry}_${negative ? "negative_test" : "demo"}.pdf`,
       );
 
-      setUploadError(
-        null,
-      );
-
-      setResult(
-        null,
-      );
-
+      setUploadError(null);
+      setResult(null);
       setScreen(3);
     } catch (error: any) {
       setUploadError(
@@ -602,13 +598,8 @@ export default function Home() {
       return;
     }
 
-    setProcessing(
-      true,
-    );
-
-    setProcessError(
-      null,
-    );
+    setProcessing(true);
+    setProcessError(null);
 
     try {
       const response =
@@ -638,9 +629,7 @@ export default function Home() {
       const documentId =
         response.document_id;
 
-      if (
-        !documentId
-      ) {
+      if (!documentId) {
         throw new Error(
           "The document was processed, but the server did not return a document ID.",
         );
@@ -650,30 +639,22 @@ export default function Home() {
         SessionRecord =
         {
           ...response,
-
           id: String(
             documentId,
           ),
-
           document_id:
             documentId,
-
           sourceLabel:
             sourceLabel ||
             "document.pdf",
-
           docTitle:
             meta.doc_title,
-
           industryLabel:
             meta.label,
-
           field_schema:
             fieldSchema,
-
           fieldSchema:
             fieldSchema,
-
           createdAt:
             new Date().toISOString(),
         };
@@ -694,9 +675,7 @@ export default function Home() {
         }.`,
       );
     } finally {
-      setProcessing(
-        false,
-      );
+      setProcessing(false);
     }
   }
 
@@ -728,14 +707,11 @@ export default function Home() {
             return {
               ...record,
               ...updated,
-
-              // Preserve the historical field schema.
               field_schema:
                 record.field_schema ||
                 record.fieldSchema ||
                 updated.field_schema ||
                 [],
-
               fieldSchema:
                 record.fieldSchema ||
                 record.field_schema ||
@@ -752,17 +728,13 @@ export default function Home() {
           ProcessResultWithDocument
       ).document_id;
 
-    if (
-      documentId
-    ) {
+    if (documentId) {
       updateProcessedDocument(
         documentId,
         updated.extracted,
         updated.validation,
         updated.overall,
-      ).catch(
-        () => undefined,
-      );
+      ).catch(() => undefined);
     }
   }
 
@@ -773,9 +745,7 @@ export default function Home() {
 
   function startOver() {
     setScreen(1);
-    setIndustry(
-      null,
-    );
+    setIndustry(null);
     resetDocumentState();
   }
 
@@ -839,7 +809,7 @@ export default function Home() {
 
 
   // ==========================================================================
-  // LOGIN REQUIRED
+  // LOGIN
   // ==========================================================================
 
   if (!user) {
@@ -857,7 +827,7 @@ export default function Home() {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2-2z"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
           </div>
@@ -867,9 +837,7 @@ export default function Home() {
           </h1>
 
           <p className="text-inksoft text-sm mt-2">
-            {showLogin
-              ? "Login or create an account to continue."
-              : "Please login to continue."}
+            Login or create an account to continue.
           </p>
         </div>
 
@@ -938,11 +906,12 @@ export default function Home() {
 
 
   // ==========================================================================
-  // MAIN
+  // MAIN UI
   // ==========================================================================
 
   return (
     <div className="relative min-h-screen overflow-hidden">
+      {/* Background */}
       <div className="bg-orb w-[500px] h-[500px] bg-primary/20 -top-[200px] -right-[200px] fixed pointer-events-none" />
 
       <div
@@ -1170,7 +1139,6 @@ export default function Home() {
                 )}
             </div>
 
-
             <SessionList
               records={
                 sessionResults
@@ -1199,9 +1167,7 @@ export default function Home() {
               Boolean(user)
             }
             onRequireLogin={() =>
-              setShowLogin(
-                true,
-              )
+              setShowLogin(true)
             }
           />
         )}
