@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -27,6 +26,10 @@ import {
 } from "@/lib/api";
 
 import {
+  initializeAuthExpiration,
+} from "@/lib/auth";
+
+import {
   IndustryKey,
   IndustryMeta,
   ProcessResult,
@@ -34,45 +37,11 @@ import {
 } from "@/lib/types";
 
 
-type AuthUser = {
-  id: number;
-  email: string;
-};
-
-
-type ProcessResultWithDocument =
-  ProcessResult & {
-    document_id?: number;
-    field_schema?: any[];
-  };
-
-
 export default function Home() {
-  // ==========================================================================
-  // AUTH
-  // ==========================================================================
-
   const [
     authChecking,
     setAuthChecking,
   ] = useState(true);
-
-  const [
-    user,
-    setUser,
-  ] = useState<AuthUser | null>(
-    null,
-  );
-
-  const [
-    showLogin,
-    setShowLogin,
-  ] = useState(false);
-
-
-  // ==========================================================================
-  // APPLICATION
-  // ==========================================================================
 
   const [
     industries,
@@ -95,13 +64,23 @@ export default function Home() {
     activeTab,
     setActiveTab,
   ] = useState<
-    "process" | "validate" | "fields"
+    "process" |
+    "validate" |
+    "fields"
   >("process");
 
+  const [
+    user,
+    setUser,
+  ] = useState<{
+    id: number;
+    email: string;
+  } | null>(null);
 
-  // ==========================================================================
-  // PROCESS
-  // ==========================================================================
+  const [
+    showLogin,
+    setShowLogin,
+  ] = useState(false);
 
   const [
     screen,
@@ -154,14 +133,9 @@ export default function Home() {
   const [
     result,
     setResult,
-  ] = useState<
-    ProcessResult | null
-  >(null);
-
-
-  // ==========================================================================
-  // SAVED DOCUMENTS
-  // ==========================================================================
+  ] = useState<ProcessResult | null>(
+    null,
+  );
 
   const [
     sessionResults,
@@ -172,249 +146,27 @@ export default function Home() {
 
 
   // ==========================================================================
-  // LOAD APP DATA
+  // LOAD DATA
   // ==========================================================================
 
-  const loadAppData =
-    useCallback(async () => {
-      const [
-        nextIndustries,
-        documents,
-      ] = await Promise.all([
-        fetchIndustries(),
-        fetchDocuments(),
-      ]);
-
-      setIndustries(
-        nextIndustries,
-      );
-
-      setSessionResults(
-        documents,
-      );
-    }, []);
-
-
-  // ==========================================================================
-  // REFRESH USER
-  // ==========================================================================
-
-  const refreshUser =
-    useCallback(async () => {
-      const data =
-        await fetchCurrentUser();
-
-      const currentUser =
-        data?.user || null;
-
-      setUser(
-        currentUser,
-      );
-
-      return currentUser;
-    }, []);
-
-
-  // ==========================================================================
-  // INITIAL AUTH CHECK
-  // ==========================================================================
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function initialize() {
-      try {
-        const data =
-          await fetchCurrentUser();
-
-        if (!mounted) {
-          return;
-        }
-
-        const currentUser =
-          data?.user || null;
-
-        setUser(
-          currentUser,
-        );
-
-        if (!currentUser) {
-          setShowLogin(true);
-          return;
-        }
-
-        await loadAppData();
-      } catch (error: any) {
-        if (!mounted) {
-          return;
-        }
-
-        setLoadError(
-          error?.message ||
-            "Could not load the application.",
-        );
-      } finally {
-        if (mounted) {
-          setAuthChecking(
-            false,
-          );
-        }
-      }
-    }
-
-    initialize();
-
-    return () => {
-      mounted = false;
-    };
-  }, [loadAppData]);
-
-
-  // ==========================================================================
-  // SESSION EXPIRED
-  // ==========================================================================
-
-  const handleSessionExpired =
-    useCallback(() => {
-      logout();
-
-      setUser(null);
-      setIndustries(null);
-      setSessionResults([]);
-      setResult(null);
-
-      setPdfBlob(null);
-      setPdfUrl("");
-      setSourceLabel("");
-
-      setUploadError(null);
-      setProcessError(null);
-      setProcessing(false);
-
-      setActiveTab(
-        "process",
-      );
-
-      setScreen(1);
-
-      setShowLogin(true);
-    }, []);
-
-
-  // ==========================================================================
-  // CHECK AUTH
-  // ==========================================================================
-
-  const checkAuthentication =
-    useCallback(async () => {
-      if (!user) {
-        return;
-      }
-
-      try {
-        const currentUser =
-          await refreshUser();
-
-        if (!currentUser) {
-          handleSessionExpired();
-        }
-      } catch {
-        // IMPORTANT:
-        // Do not log the user out for
-        // temporary API/server failures.
-        // Only fetchCurrentUser() returning
-        // null because of 401 should log out.
-      }
-    }, [
-      user,
-      refreshUser,
-      handleSessionExpired,
+  async function loadAppData() {
+    const [
+      nextIndustries,
+      documents,
+    ] = await Promise.all([
+      fetchIndustries(),
+      fetchDocuments(),
     ]);
 
-
-  // ==========================================================================
-  // PERIODIC SESSION CHECK
-  // ==========================================================================
-
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    checkAuthentication();
-
-    const timer =
-      window.setInterval(
-        () => {
-          checkAuthentication();
-        },
-        30_000,
-      );
-
-    return () =>
-      window.clearInterval(
-        timer,
-      );
-  }, [
-    user,
-    checkAuthentication,
-  ]);
-
-
-  // ==========================================================================
-  // CHECK WHEN TAB GETS FOCUS
-  // ==========================================================================
-
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    const handleVisibility =
-      () => {
-        if (
-          document.visibilityState ===
-          "visible"
-        ) {
-          checkAuthentication();
-        }
-      };
-
-    const handleFocus =
-      () => {
-        checkAuthentication();
-      };
-
-    document.addEventListener(
-      "visibilitychange",
-      handleVisibility,
+    setIndustries(
+      nextIndustries,
     );
 
-    window.addEventListener(
-      "focus",
-      handleFocus,
+    setSessionResults(
+      documents,
     );
+  }
 
-    return () => {
-      document.removeEventListener(
-        "visibilitychange",
-        handleVisibility,
-      );
-
-      window.removeEventListener(
-        "focus",
-        handleFocus,
-      );
-    };
-  }, [
-    user,
-    checkAuthentication,
-  ]);
-
-
-  // ==========================================================================
-  // INDUSTRIES
-  // ==========================================================================
 
   async function refreshIndustries() {
     const next =
@@ -426,83 +178,139 @@ export default function Home() {
   }
 
 
+  async function refreshUser() {
+    const data =
+      await fetchCurrentUser();
+
+    setUser(
+      data?.user ||
+        null,
+    );
+
+    return data?.user || null;
+  }
+
+
   // ==========================================================================
-  // LOGIN SUCCESS
+  // INITIAL AUTH CHECK
   // ==========================================================================
 
-  async function handleAuthenticated() {
-    try {
-      setLoadError(null);
+  useEffect(() => {
+    let cancelled = false;
 
-      const currentUser =
-        await refreshUser();
-
-      if (!currentUser) {
-        setShowLogin(true);
+    function handleAuthExpired() {
+      if (cancelled) {
         return;
       }
 
-      await loadAppData();
-
-      setShowLogin(
-        false,
-      );
-    } catch (error: any) {
-      setLoadError(
-        error?.message ||
-          "Could not load your account data.",
-      );
+      setUser(null);
+      setIndustries(null);
+      setSessionResults([]);
+      setResult(null);
+      setShowLogin(true);
+      setActiveTab("process");
+      setScreen(1);
+      setAuthChecking(false);
     }
-  }
 
 
-  // ==========================================================================
-  // LOGOUT
-  // ==========================================================================
+    async function initialize() {
+      try {
+        initializeAuthExpiration(
+          handleAuthExpired,
+        );
 
-  function handleLogout() {
-    logout();
+        const data =
+          await fetchCurrentUser();
 
-    setUser(null);
-    setIndustries(null);
-    setSessionResults([]);
-    setResult(null);
+        if (cancelled) {
+          return;
+        }
 
-    setPdfBlob(null);
-    setPdfUrl("");
-    setSourceLabel("");
+        const currentUser =
+          data?.user ||
+          null;
 
-    setUploadError(null);
-    setProcessError(null);
-    setProcessing(false);
+        setUser(
+          currentUser,
+        );
 
-    setActiveTab(
-      "process",
+        if (!currentUser) {
+          setShowLogin(true);
+          return;
+        }
+
+        await loadAppData();
+
+        if (cancelled) {
+          return;
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setLoadError(
+            error?.message ||
+              "Could not load the application.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setAuthChecking(
+            false,
+          );
+        }
+      }
+    }
+
+
+    initialize();
+
+
+    window.addEventListener(
+      "auth-expired",
+      handleAuthExpired,
     );
 
-    setScreen(1);
 
-    setShowLogin(true);
-  }
+    window.addEventListener(
+      "auth-logged-out",
+      handleAuthExpired,
+    );
+
+
+    return () => {
+      cancelled = true;
+
+      window.removeEventListener(
+        "auth-expired",
+        handleAuthExpired,
+      );
+
+      window.removeEventListener(
+        "auth-logged-out",
+        handleAuthExpired,
+      );
+    };
+  }, []);
 
 
   // ==========================================================================
-  // RESET DOCUMENT
+  // DOCUMENT STATE
   // ==========================================================================
 
   function resetDocumentState() {
+    if (pdfUrl) {
+      URL.revokeObjectURL(
+        pdfUrl,
+      );
+    }
+
     setPdfBlob(null);
     setPdfUrl("");
     setResult(null);
     setProcessError(null);
     setUploadError(null);
-    setSourceLabel("");
   }
 
-
-  // ==========================================================================
-  // PROCESS FLOW
-  // ==========================================================================
 
   function goToUpload() {
     setScreen(2);
@@ -523,11 +331,14 @@ export default function Home() {
       return;
     }
 
-    setUploadError(null);
+    if (pdfUrl) {
+      URL.revokeObjectURL(
+        pdfUrl,
+      );
+    }
 
-    setPdfBlob(
-      file,
-    );
+    setUploadError(null);
+    setPdfBlob(file);
 
     setPdfUrl(
       URL.createObjectURL(
@@ -540,7 +351,6 @@ export default function Home() {
     );
 
     setResult(null);
-
     setScreen(3);
   }
 
@@ -558,6 +368,12 @@ export default function Home() {
           industry,
           negative,
         );
+
+      if (pdfUrl) {
+        URL.revokeObjectURL(
+          pdfUrl,
+        );
+      }
 
       setPdfBlob(
         blob,
@@ -586,7 +402,7 @@ export default function Home() {
 
 
   // ==========================================================================
-  // PROCESS DOCUMENT
+  // PROCESS
   // ==========================================================================
 
   async function handleProcess() {
@@ -603,14 +419,12 @@ export default function Home() {
 
     try {
       const response =
-        (
-          await processDocument(
-            industry,
-            pdfBlob,
-            sourceLabel ||
-              "document.pdf",
-          )
-        ) as ProcessResultWithDocument;
+        await processDocument(
+          industry,
+          pdfBlob,
+          sourceLabel ||
+            "document.pdf",
+        );
 
       setResult(
         response,
@@ -621,43 +435,36 @@ export default function Home() {
           industry
         ];
 
-      const fieldSchema =
-        response.field_schema ||
-        meta.fields ||
-        [];
-
-      const documentId =
-        response.document_id;
-
-      if (!documentId) {
-        throw new Error(
-          "The document was processed, but the server did not return a document ID.",
-        );
-      }
-
       const newRecord:
-        SessionRecord =
-        {
-          ...response,
-          id: String(
-            documentId,
-          ),
-          document_id:
-            documentId,
-          sourceLabel:
-            sourceLabel ||
-            "document.pdf",
-          docTitle:
-            meta.doc_title,
-          industryLabel:
-            meta.label,
-          field_schema:
-            fieldSchema,
-          fieldSchema:
-            fieldSchema,
-          createdAt:
-            new Date().toISOString(),
-        };
+        SessionRecord = {
+        ...response,
+
+        id: String(
+          response.document_id,
+        ),
+
+        document_id:
+          response.document_id,
+
+        sourceLabel,
+
+        docTitle:
+          meta.doc_title,
+
+        industryLabel:
+          meta.label,
+
+        fieldSchema:
+          response.field_schema ||
+          meta.fields,
+
+        field_schema:
+          response.field_schema ||
+          meta.fields,
+
+        createdAt:
+          new Date().toISOString(),
+      };
 
       setSessionResults(
         (previous) => [
@@ -675,7 +482,9 @@ export default function Home() {
         }.`,
       );
     } finally {
-      setProcessing(false);
+      setProcessing(
+        false,
+      );
     }
   }
 
@@ -707,13 +516,13 @@ export default function Home() {
             return {
               ...record,
               ...updated,
-              field_schema:
-                record.field_schema ||
+
+              fieldSchema:
                 record.fieldSchema ||
                 updated.field_schema ||
                 [],
-              fieldSchema:
-                record.fieldSchema ||
+
+              field_schema:
                 record.field_schema ||
                 updated.field_schema ||
                 [],
@@ -722,19 +531,17 @@ export default function Home() {
         ),
     );
 
-    const documentId =
-      (
-        updated as
-          ProcessResultWithDocument
-      ).document_id;
-
-    if (documentId) {
+    if (
+      updated.document_id
+    ) {
       updateProcessedDocument(
-        documentId,
+        updated.document_id,
         updated.extracted,
         updated.validation,
         updated.overall,
-      ).catch(() => undefined);
+      ).catch(() => {
+        // Save failure does not interrupt the UI.
+      });
     }
   }
 
@@ -751,41 +558,45 @@ export default function Home() {
 
 
   // ==========================================================================
-  // DELETE DOCUMENT
+  // LOGIN SUCCESS
   // ==========================================================================
 
-  async function handleDeleteDocument(
-    documentId: number,
-  ) {
-    setSessionResults(
-      (previous) =>
-        previous.filter(
-          (record) =>
-            Number(
-              record.document_id ??
-                record.id,
-            ) !==
-            documentId,
-        ),
-    );
+  async function handleAuthenticated() {
+    setLoadError(null);
 
-    const currentDocumentId =
-      result
-        ? Number(
-            (
-              result as
-                ProcessResultWithDocument
-            ).document_id ||
-              0,
-          )
-        : 0;
+    const currentUser =
+      await refreshUser();
 
-    if (
-      currentDocumentId ===
-      documentId
-    ) {
-      startOver();
+    if (!currentUser) {
+      return;
     }
+
+    initializeAuthExpiration();
+
+    await loadAppData();
+
+    setShowLogin(
+      false,
+    );
+  }
+
+
+  // ==========================================================================
+  // LOGOUT
+  // ==========================================================================
+
+  function handleLogout() {
+    logout();
+
+    setUser(null);
+    setIndustries(null);
+    setSessionResults([]);
+    setResult(null);
+    setShowLogin(true);
+    setActiveTab("process");
+    setScreen(1);
+
+    resetDocumentState();
   }
 
 
@@ -815,8 +626,11 @@ export default function Home() {
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
+
         <div className="text-center max-w-md">
+
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center mx-auto mb-5 shadow-glow">
+
             <svg
               className="w-7 h-7 text-white"
               fill="none"
@@ -837,17 +651,17 @@ export default function Home() {
           </h1>
 
           <p className="text-inksoft text-sm mt-2">
-            Login or create an account to continue.
+            Login or create an account
+            to use the application.
           </p>
         </div>
+
 
         {showLogin && (
           <LoginModal
             required
             onClose={() =>
-              setShowLogin(
-                true,
-              )
+              setShowLogin(true)
             }
             onAuthenticated={
               handleAuthenticated
@@ -860,13 +674,14 @@ export default function Home() {
 
 
   // ==========================================================================
-  // LOAD ERROR
+  // ERROR
   // ==========================================================================
 
   if (loadError) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
         <div className="bg-white rounded-2xl shadow-card p-8 max-w-md text-center">
+
           <p className="font-mono text-sm text-red-600 mb-2">
             Connection Error
           </p>
@@ -881,13 +696,15 @@ export default function Home() {
 
 
   // ==========================================================================
-  // INDUSTRIES LOADING
+  // LOADING
   // ==========================================================================
 
   if (!industries) {
     return (
       <div className="min-h-screen flex items-center justify-center">
+
         <div className="flex flex-col items-center gap-3">
+
           <div className="spinner" />
 
           <span className="text-inksoft text-sm font-mono">
@@ -906,12 +723,12 @@ export default function Home() {
 
 
   // ==========================================================================
-  // MAIN UI
+  // APPLICATION
   // ==========================================================================
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      {/* Background */}
+
       <div className="bg-orb w-[500px] h-[500px] bg-primary/20 -top-[200px] -right-[200px] fixed pointer-events-none" />
 
       <div
@@ -922,114 +739,78 @@ export default function Home() {
         }}
       />
 
+
       <div className="relative max-w-[1080px] mx-auto px-6 sm:px-8 py-10 pb-24">
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-10 gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center shadow-glow">
-              <svg
-                className="w-5 h-5 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2-2z"
-                />
-              </svg>
-            </div>
+        {/* HEADER */}
 
-            <div>
-              <h1 className="font-display font-bold text-xl tracking-tight text-ink">
-                AI Document Automation MVP
-              </h1>
+        <div className="flex items-center justify-between mb-10">
 
-              <p className="text-inksoft text-xs mt-0.5 truncate max-w-[420px]">
-                Signed in as{" "}
-                {user.email}
-              </p>
-            </div>
+          <div>
+            <h1 className="font-display font-bold text-xl tracking-tight text-ink">
+              AI Document Automation MVP
+            </h1>
+
+            <p className="text-inksoft text-xs mt-0.5">
+              Signed in as{" "}
+              {user.email}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="hidden sm:inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-inksoft bg-white border border-line rounded-full px-3 py-1.5 shadow-card">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-soft" />
-              Account Active
-            </span>
 
-            <button
-              type="button"
-              onClick={
-                handleLogout
-              }
-              className="border border-line bg-white rounded-lg px-3 py-1.5 text-xs font-semibold text-ink hover:border-primary hover:text-primary transition-colors"
-            >
-              Logout
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={
+              handleLogout
+            }
+            className="border border-line bg-white rounded-lg px-3 py-1.5 text-xs font-semibold text-ink hover:border-primary hover:text-primary"
+          >
+            Logout
+          </button>
         </div>
 
 
-        {/* Tabs */}
+        {/* TABS */}
+
         <div className="flex gap-2 mb-8 border-b border-line overflow-x-auto">
-          <button
-            type="button"
-            onClick={() =>
-              setActiveTab(
-                "process",
-              )
-            }
-            className={`whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-              activeTab ===
-              "process"
-                ? "border-primary text-ink"
-                : "border-transparent text-inksoft hover:text-ink"
-            }`}
-          >
-            Process New Document
-          </button>
 
-          <button
-            type="button"
-            onClick={() =>
-              setActiveTab(
-                "validate",
-              )
-            }
-            className={`whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-              activeTab ===
-              "validate"
-                ? "border-primary text-ink"
-                : "border-transparent text-inksoft hover:text-ink"
-            }`}
-          >
-            Existing Data Validation
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              setActiveTab(
-                "fields",
-              )
-            }
-            className={`whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-              activeTab ===
-              "fields"
-                ? "border-primary text-ink"
-                : "border-transparent text-inksoft hover:text-ink"
-            }`}
-          >
-            Field Settings
-          </button>
+          {(
+            [
+              "process",
+              "validate",
+              "fields",
+            ] as const
+          ).map(
+            (tab) => (
+              <button
+                key={tab}
+                onClick={() =>
+                  setActiveTab(
+                    tab,
+                  )
+                }
+                className={`whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+                  activeTab ===
+                  tab
+                    ? "border-primary text-ink"
+                    : "border-transparent text-inksoft hover:text-ink"
+                }`}
+              >
+                {tab ===
+                "process"
+                  ? "Process New Document"
+                  : tab ===
+                      "validate"
+                    ? "Existing Data Validation"
+                    : "Field Settings"}
+              </button>
+            ),
+          )}
         </div>
 
 
-        {/* Process */}
+        {/* PROCESS */}
+
         {activeTab ===
         "process" ? (
           <>
@@ -1040,7 +821,9 @@ export default function Home() {
             />
 
             <div className="bg-white rounded-2xl shadow-card border border-line/50 p-6 sm:p-8 animate-fade-in">
-              {screen === 1 && (
+
+              {screen ===
+                1 && (
                 <IndustrySelect
                   industries={
                     industries
@@ -1057,7 +840,9 @@ export default function Home() {
                 />
               )}
 
-              {screen === 2 &&
+
+              {screen ===
+                2 &&
                 industry &&
                 meta && (
                   <UploadStep
@@ -1089,7 +874,9 @@ export default function Home() {
                   />
                 )}
 
-              {screen === 3 &&
+
+              {screen ===
+                3 &&
                 meta && (
                   <ProcessStep
                     meta={meta}
@@ -1116,7 +903,9 @@ export default function Home() {
                   />
                 )}
 
-              {screen === 4 &&
+
+              {screen ===
+                4 &&
                 meta &&
                 result && (
                   <ResultsStep
@@ -1139,13 +928,28 @@ export default function Home() {
                 )}
             </div>
 
+
             <SessionList
               records={
                 sessionResults
               }
-              onDelete={
-                handleDeleteDocument
-              }
+              onDelete={async (
+                documentId,
+              ) => {
+                setSessionResults(
+                  (previous) =>
+                    previous.filter(
+                      (
+                        record,
+                      ) =>
+                        Number(
+                          record.document_id ??
+                            record.id,
+                        ) !==
+                        documentId,
+                    ),
+                );
+              }}
             />
           </>
         ) : activeTab ===
