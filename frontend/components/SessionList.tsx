@@ -27,25 +27,97 @@ function downloadBlob(
   blob: Blob,
   filename: string,
 ) {
-  const url =
-    URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
 
-  const anchor =
-    document.createElement("a");
+  const anchor = document.createElement("a");
 
   anchor.href = url;
   anchor.download = filename;
 
-  document.body.appendChild(
-    anchor,
-  );
+  document.body.appendChild(anchor);
 
   anchor.click();
-
   anchor.remove();
 
-  URL.revokeObjectURL(
-    url,
+  URL.revokeObjectURL(url);
+}
+
+
+// ============================================================================
+// TRASH ICON
+// ============================================================================
+
+function TrashIcon({
+  className = "w-[17px] h-[17px]",
+}: {
+  className?: string;
+}) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Handle */}
+      <path
+        d="M9 4.5C9 3.67 9.67 3 10.5 3h3C14.33 3 15 3.67 15 4.5V6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+
+      {/* Lid */}
+      <path
+        d="M5 6.5h14"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+
+      {/* Solid lid */}
+      <path
+        d="M6.5 6.5h11l-.6 2.1H7.1l-.6-2.1Z"
+        fill="currentColor"
+      />
+
+      {/* Bin */}
+      <path
+        d="M7.25 8.6h9.5l-.65 10.25A1.75 1.75 0 0 1 14.35 20.5h-4.7A1.75 1.75 0 0 1 7.9 18.85L7.25 8.6Z"
+        fill="currentColor"
+      />
+
+      {/* Inner area */}
+      <path
+        d="M9 9.8h6l.45 8.75a.7.7 0 0 1-.7.75h-5.5a.7.7 0 0 1-.7-.75L9 9.8Z"
+        fill="white"
+      />
+
+      {/* Slot 1 */}
+      <path
+        d="M10 11.2v5.6"
+        stroke="currentColor"
+        strokeWidth="1.15"
+        strokeLinecap="round"
+      />
+
+      {/* Slot 2 */}
+      <path
+        d="M12 11.2v5.6"
+        stroke="currentColor"
+        strokeWidth="1.15"
+        strokeLinecap="round"
+      />
+
+      {/* Slot 3 */}
+      <path
+        d="M14 11.2v5.6"
+        stroke="currentColor"
+        strokeWidth="1.15"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -68,104 +140,64 @@ export default function SessionList({
   // DOWNLOAD STATE
   // ==========================================================================
 
-  const [
-    downloadingAll,
-    setDownloadingAll,
-  ] = useState(false);
+  const [downloadingAll, setDownloadingAll] =
+    useState(false);
 
-  const [
-    downloadingId,
-    setDownloadingId,
-  ] = useState<string | null>(
-    null,
-  );
+  const [downloadingId, setDownloadingId] =
+    useState<string | null>(null);
 
 
   // ==========================================================================
   // EMAIL STATE
   // ==========================================================================
 
-  const [
-    emailOpenId,
-    setEmailOpenId,
-  ] = useState<string | null>(
-    null,
-  );
+  const [emailOpenId, setEmailOpenId] =
+    useState<string | null>(null);
 
-  const [
-    emailAddress,
-    setEmailAddress,
-  ] = useState("");
+  const [emailAddress, setEmailAddress] =
+    useState("");
 
-  const [
-    sendingEmailId,
-    setSendingEmailId,
-  ] = useState<string | null>(
-    null,
-  );
+  const [sendingEmailId, setSendingEmailId] =
+    useState<string | null>(null);
 
-  const [
-    emailAllOpen,
-    setEmailAllOpen,
-  ] = useState(false);
+  const [emailAllOpen, setEmailAllOpen] =
+    useState(false);
 
-  const [
-    emailAllAddress,
-    setEmailAllAddress,
-  ] = useState("");
+  const [emailAllAddress, setEmailAllAddress] =
+    useState("");
 
-  const [
-    sendingEmailAll,
-    setSendingEmailAll,
-  ] = useState(false);
+  const [sendingEmailAll, setSendingEmailAll] =
+    useState(false);
 
 
   // ==========================================================================
   // DELETE STATE
   // ==========================================================================
 
-  const [
-    deletingId,
-    setDeletingId,
-  ] = useState<string | null>(
-    null,
-  );
+  const [deletingId, setDeletingId] =
+    useState<string | null>(null);
 
-  const [
-    deletingSelected,
-    setDeletingSelected,
-  ] = useState(false);
+  const [deletingSelected, setDeletingSelected] =
+    useState(false);
 
 
   // ==========================================================================
   // SELECTION STATE
   // ==========================================================================
 
-  const [
-    selectedIds,
-    setSelectedIds,
-  ] = useState<Set<number>>(
-    new Set(),
-  );
+  const [selectedIds, setSelectedIds] =
+    useState<Set<number>>(new Set());
 
 
   // ==========================================================================
   // MESSAGE STATE
   // ==========================================================================
 
-  const [
-    error,
-    setError,
-  ] = useState<string | null>(
-    null,
-  );
+  const [error, setError] =
+    useState<string | null>(null);
 
-  const [
-    emailSuccess,
-    setEmailSuccess,
-  ] = useState<string | null>(
-    null,
-  );
+  const [successMessage, setSuccessMessage] =
+    useState<string | null>(null);
 
 
   // ==========================================================================
@@ -173,124 +205,82 @@ export default function SessionList({
   // ==========================================================================
 
   const errorTimerRef =
-    useRef<
-      ReturnType<
-        typeof setTimeout
-      > | null
-    >(null);
+    useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const successTimerRef =
-    useRef<
-      ReturnType<
-        typeof setTimeout
-      > | null
-    >(null);
+    useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
   useEffect(() => {
     return () => {
-      if (
-        errorTimerRef.current
-      ) {
-        clearTimeout(
-          errorTimerRef.current,
-        );
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
       }
 
-      if (
-        successTimerRef.current
-      ) {
-        clearTimeout(
-          successTimerRef.current,
-        );
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
       }
     };
   }, []);
 
 
   // ==========================================================================
-  // TEMPORARY MESSAGE HELPERS
+  // TEMPORARY MESSAGES
   // ==========================================================================
 
-  function showError(
-    message: string,
-  ) {
-    if (
-      errorTimerRef.current
-    ) {
-      clearTimeout(
-        errorTimerRef.current,
-      );
+  function showError(message: string) {
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
     }
 
-    setError(
-      message,
-    );
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
 
-    errorTimerRef.current =
-      setTimeout(() => {
-        setError(
-          null,
-        );
+    setSuccessMessage(null);
+    setError(message);
 
-        errorTimerRef.current =
-          null;
-      }, 4000);
+    errorTimerRef.current = setTimeout(() => {
+      setError(null);
+      errorTimerRef.current = null;
+    }, 4000);
   }
 
 
-  function showSuccess(
-    message: string,
-  ) {
-    if (
-      successTimerRef.current
-    ) {
-      clearTimeout(
-        successTimerRef.current,
-      );
+  function showSuccess(message: string) {
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
     }
 
-    setEmailSuccess(
-      message,
-    );
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
 
-    successTimerRef.current =
-      setTimeout(() => {
-        setEmailSuccess(
-          null,
-        );
+    setError(null);
+    setSuccessMessage(message);
 
-        successTimerRef.current =
-          null;
-      }, 4000);
+    successTimerRef.current = setTimeout(() => {
+      setSuccessMessage(null);
+      successTimerRef.current = null;
+    }, 4000);
   }
 
 
   function clearMessages() {
-    if (
-      errorTimerRef.current
-    ) {
-      clearTimeout(
-        errorTimerRef.current,
-      );
-
-      errorTimerRef.current =
-        null;
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
     }
 
-    if (
-      successTimerRef.current
-    ) {
-      clearTimeout(
-        successTimerRef.current,
-      );
-
-      successTimerRef.current =
-        null;
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
     }
 
     setError(null);
-    setEmailSuccess(null);
+    setSuccessMessage(null);
   }
 
 
@@ -298,21 +288,18 @@ export default function SessionList({
   // DOCUMENT IDS
   // ==========================================================================
 
-  const documentIds =
-    useMemo(() => {
-      return records
-        .map(
-          (record) =>
-            Number(
-              record.document_id ??
-                record.id,
-            ),
-        )
-        .filter(
-          (id) =>
-            Number.isFinite(id),
-        );
-    }, [records]);
+  const documentIds = useMemo(() => {
+    return records
+      .map((record) =>
+        Number(
+          record.document_id ??
+            record.id,
+        ),
+      )
+      .filter((id) =>
+        Number.isFinite(id),
+      );
+  }, [records]);
 
 
   // ==========================================================================
@@ -320,51 +307,31 @@ export default function SessionList({
   // ==========================================================================
 
   useEffect(() => {
-    setSelectedIds(
-      (previous) => {
-        const validIds =
-          new Set(
-            documentIds,
-          );
+    setSelectedIds((previous) => {
+      const validIds = new Set(documentIds);
 
-        const next =
-          new Set(
-            Array.from(
-              previous,
-            ).filter(
-              (id) =>
-                validIds.has(
-                  id,
-                ),
-            ),
-          );
+      const next = new Set(
+        Array.from(previous).filter((id) =>
+          validIds.has(id),
+        ),
+      );
 
-        if (
-          next.size ===
-          previous.size
-        ) {
-          return previous;
-        }
+      if (next.size === previous.size) {
+        return previous;
+      }
 
-        return next;
-      },
-    );
-  }, [
-    documentIds,
-  ]);
+      return next;
+    });
+  }, [documentIds]);
 
 
   const selectedCount =
     selectedIds.size;
 
-
   const allSelected =
     documentIds.length > 0 &&
-    documentIds.every(
-      (id) =>
-        selectedIds.has(
-          id,
-        ),
+    documentIds.every((id) =>
+      selectedIds.has(id),
     );
 
 
@@ -375,30 +342,17 @@ export default function SessionList({
   function handleSelectOne(
     documentId: number,
   ) {
-    setSelectedIds(
-      (previous) => {
-        const next =
-          new Set(
-            previous,
-          );
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
 
-        if (
-          next.has(
-            documentId,
-          )
-        ) {
-          next.delete(
-            documentId,
-          );
-        } else {
-          next.add(
-            documentId,
-          );
-        }
+      if (next.has(documentId)) {
+        next.delete(documentId);
+      } else {
+        next.add(documentId);
+      }
 
-        return next;
-      },
-    );
+      return next;
+    });
   }
 
 
@@ -408,17 +362,12 @@ export default function SessionList({
 
   function handleSelectAll() {
     if (allSelected) {
-      setSelectedIds(
-        new Set(),
-      );
-
+      setSelectedIds(new Set());
       return;
     }
 
     setSelectedIds(
-      new Set(
-        documentIds,
-      ),
+      new Set(documentIds),
     );
   }
 
@@ -430,15 +379,11 @@ export default function SessionList({
   async function handleDownloadAll() {
     clearMessages();
 
-    setDownloadingAll(
-      true,
-    );
+    setDownloadingAll(true);
 
     try {
       const blob =
-        await exportCombinedPdf(
-          records,
-        );
+        await exportCombinedPdf(records);
 
       downloadBlob(
         blob,
@@ -454,9 +399,7 @@ export default function SessionList({
           "Failed to download combined PDF.",
       );
     } finally {
-      setDownloadingAll(
-        false,
-      );
+      setDownloadingAll(false);
     }
   }
 
@@ -470,9 +413,7 @@ export default function SessionList({
   ) {
     clearMessages();
 
-    setDownloadingId(
-      record.id,
-    );
+    setDownloadingId(record.id);
 
     try {
       const fieldSchema =
@@ -501,9 +442,7 @@ export default function SessionList({
           "Failed to download PDF.",
       );
     } finally {
-      setDownloadingId(
-        null,
-      );
+      setDownloadingId(null);
     }
   }
 
@@ -518,18 +457,14 @@ export default function SessionList({
     clearMessages();
 
     setEmailOpenId(
-      emailOpenId ===
-        record.id
+      emailOpenId === record.id
         ? null
         : record.id,
     );
 
     setEmailAddress("");
 
-    setEmailAllOpen(
-      false,
-    );
-
+    setEmailAllOpen(false);
     setEmailAllAddress("");
   }
 
@@ -548,30 +483,22 @@ export default function SessionList({
       showError(
         "Please enter a recipient email address.",
       );
-
       return;
     }
 
     const emailPattern =
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (
-      !emailPattern.test(
-        recipient,
-      )
-    ) {
+    if (!emailPattern.test(recipient)) {
       showError(
         "Please enter a valid email address.",
       );
-
       return;
     }
 
     clearMessages();
 
-    setSendingEmailId(
-      record.id,
-    );
+    setSendingEmailId(record.id);
 
     try {
       const fieldSchema =
@@ -587,13 +514,8 @@ export default function SessionList({
         fieldSchema,
       );
 
-      setEmailAddress(
-        "",
-      );
-
-      setEmailOpenId(
-        null,
-      );
+      setEmailAddress("");
+      setEmailOpenId(null);
 
       showSuccess(
         `PDF sent successfully to ${recipient}.`,
@@ -604,9 +526,7 @@ export default function SessionList({
           "Failed to send PDF by email.",
       );
     } finally {
-      setSendingEmailId(
-        null,
-      );
+      setSendingEmailId(null);
     }
   }
 
@@ -618,21 +538,15 @@ export default function SessionList({
   async function handleDelete(
     record: SessionRecord,
   ) {
-    const documentId =
-      Number(
-        record.document_id ??
-          record.id,
-      );
+    const documentId = Number(
+      record.document_id ??
+        record.id,
+    );
 
-    if (
-      !Number.isFinite(
-        documentId,
-      )
-    ) {
+    if (!Number.isFinite(documentId)) {
       showError(
         "Could not determine the document ID.",
       );
-
       return;
     }
 
@@ -647,41 +561,25 @@ export default function SessionList({
 
     clearMessages();
 
-    setDeletingId(
-      record.id,
-    );
+    setDeletingId(record.id);
 
     try {
       await deleteProcessedDocument(
         documentId,
       );
 
-      await onDelete(
-        documentId,
-      );
+      await onDelete(documentId);
 
-      setSelectedIds(
-        (previous) => {
-          const next =
-            new Set(
-              previous,
-            );
+      setSelectedIds((previous) => {
+        const next = new Set(previous);
 
-          next.delete(
-            documentId,
-          );
+        next.delete(documentId);
 
-          return next;
-        },
-      );
+        return next;
+      });
 
-      setEmailOpenId(
-        null,
-      );
-
-      setEmailAddress(
-        "",
-      );
+      setEmailOpenId(null);
+      setEmailAddress("");
 
       showSuccess(
         `"${record.docTitle}" deleted successfully.`,
@@ -692,9 +590,7 @@ export default function SessionList({
           "Failed to delete processed document.",
       );
     } finally {
-      setDeletingId(
-        null,
-      );
+      setDeletingId(null);
     }
   }
 
@@ -705,15 +601,12 @@ export default function SessionList({
 
   async function handleDeleteSelected() {
     const ids =
-      Array.from(
-        selectedIds,
-      );
+      Array.from(selectedIds);
 
     if (!ids.length) {
       showError(
         "Please select at least one document.",
       );
-
       return;
     }
 
@@ -732,9 +625,7 @@ export default function SessionList({
 
     clearMessages();
 
-    setDeletingSelected(
-      true,
-    );
+    setDeletingSelected(true);
 
     try {
       const response =
@@ -743,12 +634,9 @@ export default function SessionList({
         );
 
       const deletedIds =
-        response.deleted_ids ||
-        [];
+        response.deleted_ids || [];
 
-      if (
-        !deletedIds.length
-      ) {
+      if (!deletedIds.length) {
         throw new Error(
           "No selected documents were deleted.",
         );
@@ -757,22 +645,13 @@ export default function SessionList({
       for (
         const documentId of deletedIds
       ) {
-        await onDelete(
-          documentId,
-        );
+        await onDelete(documentId);
       }
 
-      setSelectedIds(
-        new Set(),
-      );
+      setSelectedIds(new Set());
 
-      setEmailOpenId(
-        null,
-      );
-
-      setEmailAddress(
-        "",
-      );
+      setEmailOpenId(null);
+      setEmailAddress("");
 
       showSuccess(
         `${deletedIds.length} document${
@@ -787,9 +666,7 @@ export default function SessionList({
           "Failed to delete selected documents.",
       );
     } finally {
-      setDeletingSelected(
-        false,
-      );
+      setDeletingSelected(false);
     }
   }
 
@@ -806,22 +683,16 @@ export default function SessionList({
       showError(
         "Please enter a recipient email address.",
       );
-
       return;
     }
 
     const emailPattern =
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (
-      !emailPattern.test(
-        recipient,
-      )
-    ) {
+    if (!emailPattern.test(recipient)) {
       showError(
         "Please enter a valid email address.",
       );
-
       return;
     }
 
@@ -829,15 +700,12 @@ export default function SessionList({
       showError(
         "There are no processed documents to email.",
       );
-
       return;
     }
 
     clearMessages();
 
-    setSendingEmailAll(
-      true,
-    );
+    setSendingEmailAll(true);
 
     try {
       await emailCombinedPdf(
@@ -845,13 +713,8 @@ export default function SessionList({
         recipient,
       );
 
-      setEmailAllAddress(
-        "",
-      );
-
-      setEmailAllOpen(
-        false,
-      );
+      setEmailAllAddress("");
+      setEmailAllOpen(false);
 
       showSuccess(
         `Combined PDF sent successfully to ${recipient}.`,
@@ -862,9 +725,7 @@ export default function SessionList({
           "Failed to send combined PDF by email.",
       );
     } finally {
-      setSendingEmailAll(
-        false,
-      );
+      setSendingEmailAll(false);
     }
   }
 
@@ -873,12 +734,9 @@ export default function SessionList({
   // EMPTY STATE
   // ==========================================================================
 
-  if (
-    records.length === 0
-  ) {
+  if (!records.length) {
     return (
       <div className="mt-14">
-
         <div className="flex items-center gap-3 mb-5">
           <h3 className="font-display font-semibold text-lg text-ink">
             Processed Documents
@@ -897,7 +755,6 @@ export default function SessionList({
         </p>
 
         <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-2xl">
-
           <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
             <svg
               className="w-6 h-6 text-slate-400"
@@ -936,12 +793,9 @@ export default function SessionList({
   return (
     <div className="mt-14">
 
-      {/* ======================================================================
-          HEADER
-      ======================================================================= */}
+      {/* HEADER */}
 
       <div className="flex items-center gap-3 mb-5 flex-wrap">
-
         <h3 className="font-display font-semibold text-lg text-ink">
           Processed Documents
         </h3>
@@ -950,8 +804,7 @@ export default function SessionList({
           {records.length}
         </span>
 
-        {selectedCount >
-          0 && (
+        {selectedCount > 0 && (
           <span className="bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
             {selectedCount} selected
           </span>
@@ -959,16 +812,12 @@ export default function SessionList({
 
         <div className="ml-auto flex items-center gap-2 flex-wrap">
 
-          {/* Select All */}
+          {/* SELECT ALL */}
 
           <button
             type="button"
-            onClick={
-              handleSelectAll
-            }
-            disabled={
-              deletingSelected
-            }
+            onClick={handleSelectAll}
+            disabled={deletingSelected}
             className={`font-medium text-xs px-4 py-2.5 rounded-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
               allSelected
                 ? "border-primary bg-primary/5 text-primary"
@@ -986,10 +835,9 @@ export default function SessionList({
           </button>
 
 
-          {/* Delete Selected */}
+          {/* DELETE SELECTED */}
 
-          {selectedCount >
-            0 && (
+          {selectedCount > 0 && (
             <button
               type="button"
               onClick={
@@ -1005,49 +853,7 @@ export default function SessionList({
               {deletingSelected ? (
                 <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <svg
-                  className="w-3.5 h-3.5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M9 3.75h6"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                  />
-
-                  <path
-                    d="M4.75 6.5h14.5"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                  />
-
-                  <path
-                    d="M8 6.5l.7 12.1a1.75 1.75 0 001.75 1.65h3.1a1.75 1.75 0 001.75-1.65L16 6.5"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-
-                  <path
-                    d="M10 10v6"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                  />
-
-                  <path
-                    d="M14 10v6"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                <TrashIcon className="w-[15px] h-[15px]" />
               )}
 
               {deletingSelected
@@ -1057,7 +863,7 @@ export default function SessionList({
           )}
 
 
-          {/* Download All */}
+          {/* DOWNLOAD ALL */}
 
           <button
             type="button"
@@ -1107,7 +913,7 @@ export default function SessionList({
           </button>
 
 
-          {/* Email All */}
+          {/* EMAIL ALL */}
 
           <button
             type="button"
@@ -1117,10 +923,7 @@ export default function SessionList({
                   !value,
               );
 
-              setEmailOpenId(
-                null,
-              );
-
+              setEmailOpenId(null);
               setEmailAddress("");
             }}
             disabled={
@@ -1170,36 +973,26 @@ export default function SessionList({
       </p>
 
 
-      {/* ======================================================================
-          EMAIL ALL PANEL
-      ======================================================================= */}
+      {/* EMAIL ALL */}
 
-      {emailAllOpen && (
+      {emailAllOpen &&
+        records.length > 0 && (
         <div className="mb-5 rounded-xl border border-line bg-white p-4 shadow-card animate-fade-in">
-
           <div className="flex flex-col sm:flex-row gap-2">
-
             <input
               type="email"
-              value={
-                emailAllAddress
-              }
-              onChange={(
-                event,
-              ) =>
+              value={emailAllAddress}
+              onChange={(event) =>
                 setEmailAllAddress(
                   event.target.value,
                 )
               }
-              onKeyDown={(
-                event,
-              ) => {
+              onKeyDown={(event) => {
                 if (
                   event.key ===
                   "Enter"
                 ) {
                   event.preventDefault();
-
                   handleEmailAll();
                 }
               }}
@@ -1222,9 +1015,9 @@ export default function SessionList({
               }
               className="bg-primary hover:bg-primary/90 active:bg-primary/80 text-white rounded-lg px-5 py-2.5 font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {sendingEmailAll ? (
+              {sendingEmailAll && (
                 <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : null}
+              )}
 
               {sendingEmailAll
                 ? "Sending…"
@@ -1233,17 +1026,16 @@ export default function SessionList({
           </div>
 
           <p className="text-[10px] text-inksoft font-mono mt-2">
-            All {records.length} processed
-            documents will be included
-            in one combined PDF attachment.
+            All {records.length}
+            processed documents will be
+            included in one combined PDF
+            attachment.
           </p>
         </div>
       )}
 
 
-      {/* ======================================================================
-          ERROR
-      ======================================================================= */}
+      {/* ERROR */}
 
       {error && (
         <div className="text-xs text-red-500 font-mono mb-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 animate-fade-in">
@@ -1252,28 +1044,21 @@ export default function SessionList({
       )}
 
 
-      {/* ======================================================================
-          SUCCESS
-      ======================================================================= */}
+      {/* SUCCESS */}
 
-      {emailSuccess && (
+      {successMessage && (
         <div className="text-xs text-emerald-600 font-mono mb-4 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2.5 animate-fade-in">
-          {emailSuccess}
+          {successMessage}
         </div>
       )}
 
 
-      {/* ======================================================================
-          DOCUMENT LIST
-      ======================================================================= */}
+      {/* DOCUMENT LIST */}
 
       <div className="space-y-3">
 
         {records.map(
-          (
-            record,
-            index,
-          ) => {
+          (record, index) => {
             const documentId =
               Number(
                 record.document_id ??
@@ -1305,12 +1090,9 @@ export default function SessionList({
               deletingId ===
               record.id;
 
-
             return (
               <div
-                key={
-                  record.id
-                }
+                key={record.id}
                 className={`card-lift bg-white border rounded-xl px-5 py-4 shadow-card animate-fade-in transition-all ${
                   selected
                     ? "border-primary/50 bg-primary/[0.02]"
@@ -1318,9 +1100,7 @@ export default function SessionList({
                 }`}
               >
 
-                {/* ==========================================================
-                    MAIN ROW
-                =========================================================== */}
+                {/* MAIN ROW */}
 
                 <div className="flex justify-between items-start gap-4">
 
@@ -1334,9 +1114,7 @@ export default function SessionList({
                     >
                       <input
                         type="checkbox"
-                        checked={
-                          selected
-                        }
+                        checked={selected}
                         onChange={() =>
                           handleSelectOne(
                             documentId,
@@ -1351,7 +1129,7 @@ export default function SessionList({
                     </label>
 
 
-                    {/* DOCUMENT INFORMATION */}
+                    {/* DOCUMENT */}
 
                     <div className="min-w-0 flex-1">
 
@@ -1387,9 +1165,7 @@ export default function SessionList({
                       <div className="text-xs text-inksoft leading-relaxed truncate">
                         {record.validation
                           .map(
-                            (
-                              field,
-                            ) =>
+                            (field) =>
                               `${field.label}: ${
                                 field.value ||
                                 "—"
@@ -1403,9 +1179,7 @@ export default function SessionList({
                   </div>
 
 
-                  {/* ========================================================
-                      ACTIONS
-                  ========================================================= */}
+                  {/* ACTIONS */}
 
                   <div className="flex items-center gap-2 flex-shrink-0">
 
@@ -1574,58 +1348,14 @@ export default function SessionList({
                       {deleting ? (
                         <div className="w-4 h-4 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
                       ) : (
-                        <svg
-                          className="w-4 h-4 transition-transform duration-150 group-hover:scale-105"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M9 3.75h6"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                          />
-
-                          <path
-                            d="M4.75 6.5h14.5"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                          />
-
-                          <path
-                            d="M8 6.5l.7 12.1a1.75 1.75 0 001.75 1.65h3.1a1.75 1.75 0 001.75-1.65L16 6.5"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-
-                          <path
-                            d="M10 10v6"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                          />
-
-                          <path
-                            d="M14 10v6"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                          />
-                        </svg>
+                        <TrashIcon />
                       )}
                     </button>
                   </div>
                 </div>
 
 
-                {/* ==========================================================
-                    INDIVIDUAL EMAIL PANEL
-                =========================================================== */}
+                {/* INDIVIDUAL EMAIL */}
 
                 {emailOpen && (
                   <div className="mt-4 pt-4 border-t border-line/70 animate-fade-in">
@@ -1641,9 +1371,7 @@ export default function SessionList({
                           event,
                         ) =>
                           setEmailAddress(
-                            event
-                              .target
-                              .value,
+                            event.target.value,
                           )
                         }
                         onKeyDown={(
@@ -1728,9 +1456,7 @@ export default function SessionList({
       </div>
 
 
-      {/* ======================================================================
-          SELECTION FOOTER
-      ======================================================================= */}
+      {/* SELECTION FOOTER */}
 
       <div className="mt-4 flex items-center justify-between gap-3">
 
@@ -1774,12 +1500,10 @@ export default function SessionList({
         </button>
 
 
-        {selectedCount >
-          0 && (
+        {selectedCount > 0 && (
           <span className="text-xs font-mono text-inksoft">
             {selectedCount} of{" "}
-            {records.length}{" "}
-            selected
+            {records.length} selected
           </span>
         )}
       </div>
