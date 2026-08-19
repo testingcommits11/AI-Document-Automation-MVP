@@ -99,9 +99,13 @@ def _validate_type(
         if parsed_date is None:
             return "Invalid date format."
 
-        if parsed_date > date.today():
-            return "Date cannot be in the future."
+        elif field_type == "date":
+            parsed_date = parse_date_value(value)
 
+        if parsed_date is None:
+            return "Invalid date format."
+
+        # Future dates are currently allowed.
         return None
 
     # ------------------------------------------------------------------

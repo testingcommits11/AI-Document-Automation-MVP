@@ -1,38 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import {
   FieldType,
   IndustryMeta,
   ProcessResult,
 } from "@/lib/types";
+
 import {
   exportUpdatedPdf,
   emailUpdatedPdf,
 } from "@/lib/api";
 
-const SHORT_MONTHS =
-  "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec";
 
-const FULL_MONTHS =
-  "January|February|March|April|May|June|July|August|September|October|November|December";
-
-function getTodayInputValue(): string {
-  const today = new Date();
-
-  const year =
-    today.getFullYear();
-
-  const month = String(
-    today.getMonth() + 1,
-  ).padStart(2, "0");
-
-  const day = String(
-    today.getDate(),
-  ).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
+// ============================================================================
+// DATE HELPERS
+// ============================================================================
 
 function parseDateValue(
   value: string,
@@ -44,26 +28,37 @@ function parseDateValue(
     return null;
   }
 
+  // YYYY-MM-DD
   const isoMatch =
     trimmed.match(
       /^(\d{4})-(\d{2})-(\d{2})$/,
     );
 
   if (isoMatch) {
+    const year =
+      Number(isoMatch[1]);
+
+    const month =
+      Number(isoMatch[2]) - 1;
+
+    const day =
+      Number(isoMatch[3]);
+
     const date =
       new Date(
-        Number(isoMatch[1]),
-        Number(isoMatch[2]) - 1,
-        Number(isoMatch[3]),
+        year,
+        month,
+        day,
       );
 
+    // Make sure the date actually exists.
     if (
       date.getFullYear() ===
-        Number(isoMatch[1]) &&
+        year &&
       date.getMonth() ===
-        Number(isoMatch[2]) - 1 &&
+        month &&
       date.getDate() ===
-        Number(isoMatch[3])
+        day
     ) {
       return date;
     }
@@ -71,6 +66,7 @@ function parseDateValue(
     return null;
   }
 
+  // Natural/common date formats.
   const parsed =
     Date.parse(trimmed);
 
@@ -84,7 +80,8 @@ function parseDateValue(
     new Date(parsed);
 
   if (
-    date.getFullYear() < 1900
+    date.getFullYear() <
+    1900
   ) {
     return null;
   }
@@ -99,18 +96,65 @@ function parseDateValue(
   return date;
 }
 
+
+function formatToIsoDate(
+  value: string,
+): string {
+  if (!value) {
+    return "";
+  }
+
+  if (
+    /^\d{4}-\d{2}-\d{2}$/.test(
+      value,
+    )
+  ) {
+    return value;
+  }
+
+  const parsed =
+    parseDateValue(value);
+
+  if (!parsed) {
+    return "";
+  }
+
+  const year =
+    parsed.getFullYear();
+
+  const month =
+    String(
+      parsed.getMonth() + 1,
+    ).padStart(2, "0");
+
+  const day =
+    String(
+      parsed.getDate(),
+    ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+
+// ============================================================================
+// FIELD VALIDATION
+// ============================================================================
+
 function checkFieldOk(
-  val: string,
+  value: string,
   type: FieldType = "text",
 ): boolean {
   const trimmed =
-    (val || "").trim();
+    (value || "").trim();
 
   if (!trimmed) {
     return false;
   }
 
-  if (type === "number") {
+  // Number validation.
+  if (
+    type === "number"
+  ) {
     const normalized =
       trimmed.replace(
         /[$,\s₹€£]/g,
@@ -122,69 +166,33 @@ function checkFieldOk(
     );
   }
 
-  if (type === "date") {
+  // Date validation.
+  //
+  // IMPORTANT:
+  // Future dates are currently allowed.
+  //
+  // We only check whether the value is
+  // a valid date.
+  if (
+    type === "date"
+  ) {
     const parsedDate =
       parseDateValue(
         trimmed,
       );
 
-    if (!parsedDate) {
-      return false;
-    }
-
-    const today =
-      new Date();
-
-    today.setHours(
-      0,
-      0,
-      0,
-      0,
-    );
-
     return (
-      parsedDate <= today
+      parsedDate !== null
     );
   }
 
   return true;
 }
 
-function formatToIsoDate(
-  val: string,
-): string {
-  if (!val) {
-    return "";
-  }
 
-  if (
-    /^\d{4}-\d{2}-\d{2}$/.test(
-      val,
-    )
-  ) {
-    return val;
-  }
-
-  const parsed =
-    parseDateValue(val);
-
-  if (!parsed) {
-    return "";
-  }
-
-  const yyyy =
-    parsed.getFullYear();
-
-  const mm = String(
-    parsed.getMonth() + 1,
-  ).padStart(2, "0");
-
-  const dd = String(
-    parsed.getDate(),
-  ).padStart(2, "0");
-
-  return `${yyyy}-${mm}-${dd}`;
-}
+// ============================================================================
+// INPUT STYLING
+// ============================================================================
 
 function getInputClass(
   ok: boolean,
@@ -195,6 +203,11 @@ function getInputClass(
       : "border-line bg-slate-50/50 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-ink"
   }`;
 }
+
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export default function ResultsStep({
   meta,
@@ -211,6 +224,10 @@ export default function ResultsStep({
     updated: ProcessResult,
   ) => void;
 }) {
+  // ==========================================================================
+  // FIELD STATE
+  // ==========================================================================
+
   const [
     fieldsState,
     setFieldsState,
@@ -222,13 +239,16 @@ export default function ResultsStep({
       string
     > = {};
 
-    for (const item of result.validation) {
+    for (
+      const item of result.validation
+    ) {
       initial[item.key] =
         item.value || "";
     }
 
     return initial;
   });
+
 
   const [
     editedKeys,
@@ -237,44 +257,64 @@ export default function ResultsStep({
     Record<string, boolean>
   >({});
 
+
   const [
     editAll,
     setEditAll,
   ] = useState(false);
+
+
+  // ==========================================================================
+  // DOWNLOAD
+  // ==========================================================================
 
   const [
     downloading,
     setDownloading,
   ] = useState(false);
 
+
   const [
     downloadError,
     setDownloadError,
-  ] = useState<string | null>(
-    null,
-  );
+  ] = useState<
+    string | null
+  >(null);
+
+
+  // ==========================================================================
+  // EMAIL
+  // ==========================================================================
 
   const [
     showEmail,
     setShowEmail,
   ] = useState(false);
 
+
   const [
     recipient,
     setRecipient,
   ] = useState("");
+
 
   const [
     emailSending,
     setEmailSending,
   ] = useState(false);
 
+
   const [
     emailMessage,
     setEmailMessage,
-  ] = useState<string | null>(
-    null,
-  );
+  ] = useState<
+    string | null
+  >(null);
+
+
+  // ==========================================================================
+  // SYNC LIVE SCHEMA
+  // ==========================================================================
 
   useEffect(() => {
     setFieldsState(
@@ -283,7 +323,9 @@ export default function ResultsStep({
           ...previous,
         };
 
-        for (const field of meta.fields) {
+        for (
+          const field of meta.fields
+        ) {
           if (
             !(field.key in next)
           ) {
@@ -302,6 +344,11 @@ export default function ResultsStep({
     result.extracted,
   ]);
 
+
+  // ==========================================================================
+  // FIELD TYPE
+  // ==========================================================================
+
   const getFieldType = (
     key: string,
   ): FieldType => {
@@ -311,9 +358,16 @@ export default function ResultsStep({
           item.key === key,
       );
 
-    return field?.type ||
-      "text";
+    return (
+      field?.type ||
+      "text"
+    );
   };
+
+
+  // ==========================================================================
+  // LIVE VALIDATION
+  // ==========================================================================
 
   const liveValidation =
     meta.fields.map(
@@ -350,6 +404,7 @@ export default function ResultsStep({
           label: field.label,
           value: currentValue,
           ok,
+          type: field.type,
           status: ok
             ? "valid"
             : "missing",
@@ -358,10 +413,17 @@ export default function ResultsStep({
       },
     );
 
+
   const allValid =
     liveValidation.every(
-      (field) => field.ok,
+      (field) =>
+        field.ok,
     );
+
+
+  // ==========================================================================
+  // FIELD CHANGE
+  // ==========================================================================
 
   const handleFieldChange = (
     key: string,
@@ -430,15 +492,23 @@ export default function ResultsStep({
     }
   };
 
+
+  // ==========================================================================
+  // EMAIL
+  // ==========================================================================
+
   const handleEmailPdf =
     async () => {
       const trimmedRecipient =
         recipient.trim();
 
-      if (!trimmedRecipient) {
+      if (
+        !trimmedRecipient
+      ) {
         setEmailMessage(
           "Please enter a recipient email address.",
         );
+
         return;
       }
 
@@ -453,43 +523,75 @@ export default function ResultsStep({
         setEmailMessage(
           "Please enter a valid email address.",
         );
+
         return;
       }
 
-      setEmailSending(true);
-      setEmailMessage(null);
+      setEmailSending(
+        true,
+      );
+
+      setEmailMessage(
+        null,
+      );
 
       try {
         await emailUpdatedPdf(
           result.industry,
           fieldsState,
           trimmedRecipient,
+          result.field_schema ||
+            [],
         );
 
         setEmailMessage(
           `PDF sent to ${trimmedRecipient}.`,
         );
 
-        setRecipient("");
-        setShowEmail(false);
-      } catch (e: any) {
+        setRecipient(
+          "",
+        );
+
+        setShowEmail(
+          false,
+        );
+      } catch (error: any) {
         setEmailMessage(
-          e?.message ||
+          error?.message ||
             "Failed to send PDF email.",
         );
       } finally {
-        setEmailSending(false);
+        setEmailSending(
+          false,
+        );
       }
     };
 
+
+  // ==========================================================================
+  // DOWNLOAD
+  // ==========================================================================
+
   const handleDownloadPdf =
     async () => {
-      setDownloading(true);
-      setDownloadError(null);
+      setDownloading(
+        true,
+      );
+
+      setDownloadError(
+        null,
+      );
 
       try {
+        // IMPORTANT:
+        // Use the field schema that existed when
+        // this document was originally processed.
+        //
+        // This prevents a newly-created field
+        // from appearing in an older document.
         const fieldSchema =
-          result.field_schema || result.field_schema || [];
+          result.field_schema ||
+          [];
 
         const blob =
           await exportUpdatedPdf(
@@ -503,36 +605,52 @@ export default function ResultsStep({
             blob,
           );
 
-        const a =
+        const anchor =
           document.createElement(
             "a",
           );
 
-        a.href = url;
-        a.download = `${result.industry}_filled_document.pdf`;
+        anchor.href =
+          url;
+
+        anchor.download =
+          `${result.industry}_filled_document.pdf`;
 
         document.body.appendChild(
-          a,
+          anchor,
         );
 
-        a.click();
-        a.remove();
+        anchor.click();
+
+        anchor.remove();
 
         URL.revokeObjectURL(
           url,
         );
-      } catch (e: any) {
+      } catch (error: any) {
         setDownloadError(
-          e?.message ||
+          error?.message ||
             "Failed to download PDF.",
         );
       } finally {
-        setDownloading(false);
+        setDownloading(
+          false,
+        );
       }
     };
 
+
+  // ==========================================================================
+  // RENDER
+  // ==========================================================================
+
   return (
     <div className="animate-fade-in">
+
+      {/* --------------------------------------------------------------------
+          BACK
+      --------------------------------------------------------------------- */}
+
       <button
         type="button"
         onClick={
@@ -553,8 +671,14 @@ export default function ResultsStep({
             d="M11 17l-5-5m0 0l5-5m-5 5h12"
           />
         </svg>
+
         Back to preview
       </button>
+
+
+      {/* --------------------------------------------------------------------
+          HEADER
+      --------------------------------------------------------------------- */}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <h2 className="font-display font-semibold text-xl text-ink">
@@ -592,7 +716,11 @@ export default function ResultsStep({
         </button>
       </div>
 
-      {/* Status banner */}
+
+      {/* --------------------------------------------------------------------
+          STATUS BANNER
+      --------------------------------------------------------------------- */}
+
       <div
         className={`flex items-center gap-3 px-5 py-4 mb-7 rounded-xl text-sm font-medium transition-all ${
           allValid
@@ -633,7 +761,7 @@ export default function ResultsStep({
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c.77-.833.192-1.732-1.732-1.732z"
               />
             </svg>
           )}
@@ -654,8 +782,17 @@ export default function ResultsStep({
         </div>
       </div>
 
+
+      {/* --------------------------------------------------------------------
+          CONTENT
+      --------------------------------------------------------------------- */}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Extracted info */}
+
+        {/* ------------------------------------------------------------------
+            EXTRACTED INFORMATION
+        ------------------------------------------------------------------- */}
+
         <div>
           <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-inksoft mb-3">
             <svg
@@ -671,12 +808,17 @@ export default function ResultsStep({
                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
               />
             </svg>
+
             Extracted Information & Edit Inputs
           </span>
 
           <div className="border border-line rounded-2xl p-5 bg-white space-y-4">
+
             {liveValidation.map(
-              (field, index) => {
+              (
+                field,
+                index,
+              ) => {
                 const showInput =
                   editAll ||
                   !field.ok ||
@@ -697,7 +839,9 @@ export default function ResultsStep({
 
                 return (
                   <div
-                    key={field.key}
+                    key={
+                      field.key
+                    }
                     className={`py-2.5 ${
                       index <
                       liveValidation.length -
@@ -706,6 +850,8 @@ export default function ResultsStep({
                         : ""
                     }`}
                   >
+
+                    {/* Field label */}
                     <div className="flex justify-between items-center mb-1">
                       <label
                         htmlFor={`input-${field.key}`}
@@ -735,19 +881,22 @@ export default function ResultsStep({
                       )}
                     </div>
 
+
+                    {/* Input */}
                     {showInput ? (
                       <div className="mt-1">
-                        {/* Date */}
+
+                        {/* DATE */}
                         {fieldType ===
                         "date" ? (
                           <div className="flex flex-col gap-1.5">
+
                             <input
                               id={`input-${field.key}`}
                               type="date"
                               value={
                                 isoDate
                               }
-                              max={getTodayInputValue()}
                               onChange={(
                                 event,
                               ) =>
@@ -763,9 +912,8 @@ export default function ResultsStep({
                               )} cursor-pointer`}
                             />
 
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              Future dates are not allowed.
-                            </span>
+                            {/* Future dates ARE allowed.
+                                No max attribute is intentionally used. */}
 
                             {field.value &&
                               isoDate ===
@@ -828,22 +976,17 @@ export default function ResultsStep({
                           />
                         )}
 
-                        {!field.ok &&
-                          fieldType ===
-                            "date" &&
-                          field.value && (
-                            <p className="text-[11px] text-red-600 mt-1 flex items-center gap-1 font-sans">
-                              ⚠️ Invalid date or future date
-                            </p>
-                          )}
 
-                        {!field.ok &&
-                          fieldType !==
-                            "date" && (
-                            <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1 font-sans">
-                              ⚠️ Missing or invalid data — enter a value to complete validation
-                            </p>
-                          )}
+                        {/* Error */}
+                        {!field.ok && (
+                          <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1 font-sans">
+                            ⚠️{" "}
+                            {fieldType ===
+                            "date"
+                              ? "Missing or invalid date — please enter a valid date."
+                              : "Missing or invalid data — enter a value to complete validation"}
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <div className="flex justify-between items-center group">
@@ -860,7 +1003,8 @@ export default function ResultsStep({
                                 previous,
                               ) => ({
                                 ...previous,
-                                [field.key]: true,
+                                [field.key]:
+                                  true,
                               }),
                             )
                           }
@@ -877,7 +1021,11 @@ export default function ResultsStep({
           </div>
         </div>
 
-        {/* Validation status */}
+
+        {/* ------------------------------------------------------------------
+            VALIDATION STATUS
+        ------------------------------------------------------------------- */}
+
         <div>
           <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-inksoft mb-3">
             <svg
@@ -893,15 +1041,21 @@ export default function ResultsStep({
                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
+
             Validation Status
           </span>
 
           <div className="border border-line rounded-2xl p-5 bg-white">
             <ul>
               {liveValidation.map(
-                (field, index) => (
+                (
+                  field,
+                  index,
+                ) => (
                   <li
-                    key={field.key}
+                    key={
+                      field.key
+                    }
                     className={`flex gap-3 items-center py-3 ${
                       index <
                       liveValidation.length -
@@ -955,12 +1109,9 @@ export default function ResultsStep({
                           ? field.isEdited
                             ? "— filled by user"
                             : "— found"
-                          : fieldTypeIsDate(
-                              getFieldType(
-                                field.key,
-                              ),
-                            )
-                            ? "— future or invalid date"
+                          : field.type ===
+                              "date"
+                            ? "— missing or invalid date"
                             : "— missing or invalid"}
                       </span>
                     </span>
@@ -972,7 +1123,11 @@ export default function ResultsStep({
         </div>
       </div>
 
-      {/* Status */}
+
+      {/* --------------------------------------------------------------------
+          STATUS
+      --------------------------------------------------------------------- */}
+
       <div className="mt-7 flex items-center gap-3">
         <span
           className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-full ${
@@ -1023,18 +1178,30 @@ export default function ResultsStep({
         )}
       </div>
 
+
+      {/* --------------------------------------------------------------------
+          EMAIL MESSAGE
+      --------------------------------------------------------------------- */}
+
       {emailMessage && (
         <p className="text-xs text-inksoft font-mono mt-3">
           {emailMessage}
         </p>
       )}
 
+
+      {/* --------------------------------------------------------------------
+          EMAIL FORM
+      --------------------------------------------------------------------- */}
+
       {showEmail && (
         <div className="mt-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center border border-line rounded-xl p-3 bg-slate-50/70">
           <input
             type="email"
             value={recipient}
-            onChange={(event) =>
+            onChange={(
+              event,
+            ) =>
               setRecipient(
                 event.target.value,
               )
@@ -1049,7 +1216,9 @@ export default function ResultsStep({
               }
             }}
             placeholder="recipient@example.com"
-            disabled={emailSending}
+            disabled={
+              emailSending
+            }
             className="flex-1 border border-line rounded-lg px-3 py-2.5 text-sm bg-white outline-none focus:border-primary"
           />
 
@@ -1071,13 +1240,20 @@ export default function ResultsStep({
         </div>
       )}
 
-      {/* Actions */}
+
+      {/* --------------------------------------------------------------------
+          ACTIONS
+      --------------------------------------------------------------------- */}
+
       <div className="flex gap-3 mt-7 flex-wrap items-center">
+
+        {/* Email */}
         <button
           type="button"
           onClick={() =>
             setShowEmail(
-              (value) => !value,
+              (value) =>
+                !value,
             )
           }
           className="border border-line rounded-xl px-5 py-3 text-sm font-semibold text-ink hover:border-primary hover:text-primary transition-colors"
@@ -1085,9 +1261,13 @@ export default function ResultsStep({
           Email PDF
         </button>
 
+
+        {/* Process Another */}
         <button
           type="button"
-          onClick={onAnother}
+          onClick={
+            onAnother
+          }
           className="btn-gradient font-semibold text-sm px-6 py-3 rounded-xl flex items-center gap-2"
         >
           <svg
@@ -1103,15 +1283,20 @@ export default function ResultsStep({
               d="M12 4v16m8-8H4"
             />
           </svg>
+
           Process Another Document
         </button>
 
+
+        {/* Download */}
         <button
           type="button"
           onClick={
             handleDownloadPdf
           }
-          disabled={downloading}
+          disabled={
+            downloading
+          }
           className="bg-slate-900 hover:bg-slate-800 active:bg-black text-white font-medium text-sm px-5 py-3 rounded-xl flex items-center gap-2 shadow-sm transition-all disabled:opacity-50"
         >
           {downloading ? (
@@ -1147,6 +1332,8 @@ export default function ResultsStep({
             : "Download Updated PDF"}
         </button>
 
+
+        {/* Back */}
         <button
           type="button"
           onClick={
@@ -1167,15 +1354,10 @@ export default function ResultsStep({
               d="M11 17l-5-5m0 0l5-5m-5 5h12"
             />
           </svg>
+
           Back to preview
         </button>
       </div>
     </div>
   );
-}
-
-function fieldTypeIsDate(
-  type: FieldType,
-): boolean {
-  return type === "date";
 }

@@ -950,6 +950,45 @@ def email_combined_pdf(
 
 
 # ============================================================================
+# Bulk delete
+# ============================================================================
+
+class BulkDeleteDocumentsRequest(BaseModel):
+    document_ids: list[int]
+
+
+@app.post("/api/documents/bulk-delete")
+def bulk_delete_documents(
+    req: BulkDeleteDocumentsRequest,
+    user=Depends(get_current_user),
+):
+    if not req.document_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="No documents selected.",
+        )
+
+    deleted_ids = []
+
+    for document_id in req.document_ids:
+        try:
+            delete_document(
+                user_id=int(user["id"]),
+                document_id=document_id,
+            )
+            deleted_ids.append(document_id)
+
+        except ValueError:
+            # Ignore documents that don't exist
+            # or don't belong to this user.
+            continue
+
+    return {
+        "ok": True,
+        "deleted_ids": deleted_ids,
+    }
+
+# ============================================================================
 # HEALTH
 # ============================================================================
 

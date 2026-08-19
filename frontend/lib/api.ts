@@ -912,6 +912,41 @@ export async function fetchCurrentUser() {
   return response.json();
 }
 
+// ==========================
+// bulk delete 
+// ==========================
+
+export async function deleteProcessedDocuments(
+  documentIds: number[],
+): Promise<{
+  ok: boolean;
+  deleted_ids: number[];
+}> {
+  const response = await fetch(
+    `${API_BASE}/api/documents/bulk-delete`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify({
+        document_ids: documentIds,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readError(
+        response,
+        "Could not delete the selected documents.",
+      ),
+    );
+  }
+
+  return response.json();
+}
 
 // ============================================================================
 // LOGOUT
